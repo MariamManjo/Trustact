@@ -28,12 +28,18 @@ export interface AwardPurrOptions {
   withinHalfTimeWindow?: boolean
   /** A photo proof was attached to the verifier's answer. */
   hasPhotoProof?: boolean
+  /** A location proof was attached to the verifier's answer. */
+  hasLocationProof?: boolean
+  /** The asker chose this answer as the round's standout — bonus on top of the base award. */
+  isBonusWinner?: boolean
 }
 
 export interface PurrBreakdown {
   base: number
   speedBonus: number
   photoBonus: number
+  locationBonus: number
+  bonusWinnerBonus: number
 }
 
 export interface AwardPurrResult {
@@ -49,6 +55,8 @@ export function calculatePurrBreakdown(options: AwardPurrOptions = {}): PurrBrea
     base: 10,
     speedBonus: options.withinHalfTimeWindow ? 5 : 0,
     photoBonus: options.hasPhotoProof ? 5 : 0,
+    locationBonus: options.hasLocationProof ? 5 : 0,
+    bonusWinnerBonus: options.isBonusWinner ? 10 : 0,
   }
 }
 
@@ -61,7 +69,8 @@ export async function awardPurr(
   const mintAddress = loadPurrMintAddress()
   const mint = new PublicKey(mintAddress)
   const breakdown = calculatePurrBreakdown(options)
-  const amount = breakdown.base + breakdown.speedBonus + breakdown.photoBonus
+  const amount =
+    breakdown.base + breakdown.speedBonus + breakdown.photoBonus + breakdown.locationBonus + breakdown.bonusWinnerBonus
 
   const ata = await getOrCreateAssociatedTokenAccount(connection, payer, mint, verifierWallet)
   await mintTo(connection, payer, mint, ata.address, payer, amount)

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { askVerifier, isTelegramConfigured } from '@/lib/telegram-verifier'
 import { assessAgentAction } from '@/lib/verify-action'
 import { requireAgentApiKey } from '@/lib/agent-auth'
+import { createRound } from '@/lib/verification-rounds'
+import { usdToLamports } from '@/lib/sol-price'
+import { VERIFICATION_WINDOW_SECONDS } from '@/lib/verification-window'
+
+const DEFAULT_FEE_USD = 1
 
 /**
  * Public API for AI agents.
@@ -15,7 +19,9 @@ import { requireAgentApiKey } from '@/lib/agent-auth'
  *
  * Response — needs a human to verify first:
  *   { status: "pending_verification", requestId, verificationQuestion, statusUrl }
- *   Poll statusUrl (GET /api/agent-action/status?requestId=...) until it resolves.
+ *   Poll statusUrl (GET /api/agent-action/status?requestId=...) until it
+ *   resolves. Up to 5 wallet-connected verifiers can answer; if no human
+ *   judges the round in time, it auto-resolves by majority answer.
  */
 export async function POST(req: NextRequest) {
   const authError = requireAgentApiKey(req)
@@ -46,20 +52,20 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    if (!isTelegramConfigured()) {
-      return NextResponse.json(
-        { error: 'Human verification is required but no verifier network is configured.' },
-        { status: 503 }
-      )
-    }
-
-    const requestId = await askVerifier(assessment.verificationQuestion)
+    const feeLamports = await usdToLamports(DEFAULT_FEE_USD)
+    const round = await createRound({
+      action,
+      question: assessment.verificationQuestion,
+      feeLamports,
+      proofRequirements: { photoRequired: false, locationRequired: false },
+      windowSeconds: VERIFICATION_WINDOW_SECONDS,
+    })
 
     return NextResponse.json({
       status: 'pending_verification',
-      requestId,
+      requestId: round.id,
       verificationQuestion: assessment.verificationQuestion,
-      statusUrl: `/api/agent-action/status?requestId=${requestId}`,
+      statusUrl: `/api/agent-action/status?requestId=${round.id}`,
     })
   } catch (err) {
     console.error('agent-action error:', err)

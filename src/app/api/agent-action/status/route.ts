@@ -1,74 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PublicKey } from '@solana/web3.js'
-import {
-  getVerifierStatus,
-  getVerifierWinner,
-  getVerifierWinnerWallet,
-  getCachedPayment,
-  setCachedPayment,
-} from '@/lib/telegram-verifier'
-import { releaseVerificationPayment } from '@/lib/solana-pay'
-import { awardPurr } from '@/lib/purr-token'
 import { requireAgentApiKey } from '@/lib/agent-auth'
+import { getRound, recordJudgments, type VerificationRound } from '@/lib/verification-rounds'
+import { executeRoundPayout } from '@/lib/round-payout'
+
+/**
+ * No human "asker" is necessarily watching a headless agent's round, so it
+ * can't wait forever for a judge. If nobody has judged any answer by one
+ * full extra window past the collection deadline, auto-resolve by majority
+ * answer — no bonus winner, same idempotent payout as a human judge call.
+ */
+async function autoJudgeIfOverdue(round: VerificationRound): Promise<VerificationRound> {
+  if (round.status !== 'judging') return round
+  if (round.answers.some((a) => a.judgment)) return round // a human already started judging
+
+  const graceDeadline = round.closesAt + round.windowSeconds * 1000
+  if (Date.now() < graceDeadline) return round
+
+  const yesCount = round.answers.filter((a) => a.answer === 'yes').length
+  const noCount = round.answers.length - yesCount
+  const majorityAnswer = yesCount >= noCount ? 'yes' : 'no'
+
+  const judgments: Record<string, 'correct' | 'incorrect'> = {}
+  for (const answer of round.answers) {
+    judgments[answer.verifierWallet] = answer.answer === majorityAnswer ? 'correct' : 'incorrect'
+  }
+
+  const judged = await recordJudgments(round.id, judgments)
+  return executeRoundPayout(judged)
+}
 
 /**
  * GET /api/agent-action/status?requestId=...
  * header: Authorization: Bearer <AGENT_API_KEY>
  *
- * { status: "pending" }
- * { status: "declined", verifiedBy }
- * { status: "approved", verifiedBy, payment: { signature, explorerUrl, verifier, amountSol } }
+ * { status: "pending" }                                — still collecting answers
+ * { status: "awaiting_asker_judgment" }                 — full/closed, waiting on a human judge or the auto-judge grace period
+ * { status: "expired" }                                 — window closed with zero answers
+ * { status: "declined" }                                — resolved, nobody judged correct
+ * { status: "approved", payment, purrAwards }           — resolved, at least one correct verifier paid
  */
 export async function GET(req: NextRequest) {
   const authError = requireAgentApiKey(req)
   if (authError) return authError
 
   const requestId = req.nextUrl.searchParams.get('requestId')
-
   if (!requestId) {
     return NextResponse.json({ error: 'Missing requestId' }, { status: 400 })
   }
 
-  const verifierStatus = getVerifierStatus(requestId)
-  const winner = getVerifierWinner(requestId)
-  const verifiedBy = winner ? (winner.username ? `@${winner.username}` : winner.firstName) : undefined
+  let round = await getRound(requestId)
+  if (!round) {
+    return NextResponse.json({ error: 'Round not found.' }, { status: 404 })
+  }
 
-  if (verifierStatus === 'unknown' || verifierStatus === 'pending') {
+  if (round.status === 'collecting') {
     return NextResponse.json({ status: 'pending' })
   }
 
-  if (verifierStatus === 'no') {
-    return NextResponse.json({ status: 'declined', verifiedBy })
+  if (round.status === 'expired') {
+    return NextResponse.json({ status: 'expired' })
   }
 
-  // verifierStatus === 'yes' — release payment once, then serve the cached result.
-  const cached = getCachedPayment(requestId)
-  if (cached) {
-    return NextResponse.json({ status: 'approved', verifiedBy, payment: cached })
-  }
-
-  try {
-    const payment = await releaseVerificationPayment(await getVerifierWinnerWallet(requestId))
-    setCachedPayment(requestId, payment)
-
-    // $PURR is the reputation layer, not the real money — a failed mint must
-    // never block or roll back the SOL payment above.
-    try {
-      await awardPurr(new PublicKey(payment.verifier), {
-        withinHalfTimeWindow: winner?.answeredWithinHalfWindow ?? false,
-        // No photo-proof capture exists yet (roadmap) — never true today.
-        hasPhotoProof: false,
-      })
-    } catch (purrErr) {
-      console.error('agent-action $PURR award error:', purrErr)
+  if (round.status === 'judging') {
+    round = await autoJudgeIfOverdue(round)
+    if (round.status === 'judging') {
+      return NextResponse.json({ status: 'awaiting_asker_judgment' })
     }
-
-    return NextResponse.json({ status: 'approved', verifiedBy, payment })
-  } catch (err) {
-    console.error('agent-action payment error:', err)
-    return NextResponse.json(
-      { status: 'approved', error: 'Verified, but payment failed to release. Retry shortly.' },
-      { status: 502 }
-    )
   }
+
+  // resolved
+  if (!round.payment) {
+    return NextResponse.json({ status: 'declined' })
+  }
+
+  return NextResponse.json({ status: 'approved', payment: round.payment, purrAwards: round.purrAwards })
 }

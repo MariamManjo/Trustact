@@ -1,7 +1,6 @@
 /**
- * How long a verification request stays open before the UI gives up.
- * Shared between the client countdown (trustsaur-feature.tsx) and the
- * server-side "answered within half the window" $PURR bonus
- * (telegram-verifier.ts) so the two can't drift apart.
+ * Default window a verification round stays open for answers before it's
+ * considered full/closed (see verification-rounds.ts). Also drives the
+ * "answered within half the window" $PURR speed bonus.
  */
 export const VERIFICATION_WINDOW_SECONDS = 90
