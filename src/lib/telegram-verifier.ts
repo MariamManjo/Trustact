@@ -28,7 +28,12 @@ function displayName(identity: VerifierIdentity): string {
   return identity.username ? `@${identity.username}` : identity.firstName || 'a verifier'
 }
 
-function getBot(): TelegramBot | null {
+// Starts polling the moment this module is first imported, rather than
+// waiting for the first askVerifier() call — a lazily-started poller left a
+// window between server start and the first question where taps on
+// already-open Telegram messages were dropped (Telegram won't redeliver
+// callback_query updates once they've expired off that window).
+function initBot(): TelegramBot | null {
   const token = process.env.TELEGRAM_BOT_TOKEN
   if (!token) return null
 
@@ -38,8 +43,10 @@ function getBot(): TelegramBot | null {
     g.__trustsaurWinners = new Map()
     g.__trustsaurRequestedAt = new Map()
 
+    console.log('[telegram-verifier] bot polling started')
+
     g.__trustsaurBot.on('polling_error', (err) => {
-      console.error('Telegram polling error:', err.message)
+      console.error('[telegram-verifier] polling_error:', err.message)
     })
 
     g.__trustsaurBot.onText(/^\/register(?:\s+(.+))?$/, async (msg, match) => {
@@ -80,12 +87,17 @@ function getBot(): TelegramBot | null {
     // FIRST tap on a given request should count — everyone after that gets
     // told it's already resolved, and the message updates to show the winner.
     g.__trustsaurBot.on('callback_query', (query: TelegramBot.CallbackQuery) => {
+      console.log('[telegram-verifier] callback_query received:', query.data, 'from', query.from.id)
+
       const data = query.data
       if (!data) return
 
       const requestId = data.split(':')[0]
       const currentStatus = g.__trustsaurPending?.get(requestId)
-      if (currentStatus === undefined) return // unknown request
+      if (currentStatus === undefined) {
+        console.log('[telegram-verifier] callback_query for unknown requestId:', requestId)
+        return
+      }
 
       if (currentStatus !== 'pending') {
         const winner = g.__trustsaurWinners?.get(requestId)
@@ -139,6 +151,13 @@ function getBot(): TelegramBot | null {
   }
 
   return g.__trustsaurBot
+}
+
+// Module-load side effect, intentional: see the comment on initBot() above.
+initBot()
+
+function getBot(): TelegramBot | null {
+  return g.__trustsaurBot ?? initBot()
 }
 
 export function isTelegramConfigured(): boolean {
