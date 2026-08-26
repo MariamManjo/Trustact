@@ -4,12 +4,23 @@ import { loadPayerKeypair } from './solana-keys'
 
 const RPC_URL = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com'
 
-function loadPurrMint(): PublicKey {
+function loadPurrMintAddress(): string {
   const mintAddress = process.env.PURR_MINT_ADDRESS
   if (!mintAddress) {
     throw new Error('PURR_MINT_ADDRESS not set — check .env.local')
   }
-  return new PublicKey(mintAddress)
+  return mintAddress
+}
+
+function loadPurrMint(): PublicKey {
+  return new PublicKey(loadPurrMintAddress())
+}
+
+function buildAddressExplorerUrl(address: string): string {
+  const isPublicDevnet = RPC_URL.includes('devnet.solana.com')
+  return isPublicDevnet
+    ? `https://explorer.solana.com/address/${address}?cluster=devnet`
+    : `https://explorer.solana.com/address/${address}?cluster=custom&customUrl=${encodeURIComponent(RPC_URL)}`
 }
 
 export interface AwardPurrOptions {
@@ -19,16 +30,26 @@ export interface AwardPurrOptions {
   hasPhotoProof?: boolean
 }
 
+export interface PurrBreakdown {
+  base: number
+  speedBonus: number
+  photoBonus: number
+}
+
 export interface AwardPurrResult {
   ata: string
   amount: number
+  breakdown: PurrBreakdown
+  mint: string
+  mintExplorerUrl: string
 }
 
-export function calculatePurrAward(options: AwardPurrOptions = {}): number {
-  let amount = 10
-  if (options.withinHalfTimeWindow) amount += 5
-  if (options.hasPhotoProof) amount += 5
-  return amount
+export function calculatePurrBreakdown(options: AwardPurrOptions = {}): PurrBreakdown {
+  return {
+    base: 10,
+    speedBonus: options.withinHalfTimeWindow ? 5 : 0,
+    photoBonus: options.hasPhotoProof ? 5 : 0,
+  }
 }
 
 export async function awardPurr(
@@ -37,13 +58,21 @@ export async function awardPurr(
 ): Promise<AwardPurrResult> {
   const connection = new Connection(RPC_URL, 'confirmed')
   const payer = loadPayerKeypair()
-  const mint = loadPurrMint()
-  const amount = calculatePurrAward(options)
+  const mintAddress = loadPurrMintAddress()
+  const mint = new PublicKey(mintAddress)
+  const breakdown = calculatePurrBreakdown(options)
+  const amount = breakdown.base + breakdown.speedBonus + breakdown.photoBonus
 
   const ata = await getOrCreateAssociatedTokenAccount(connection, payer, mint, verifierWallet)
   await mintTo(connection, payer, mint, ata.address, payer, amount)
 
-  return { ata: ata.address.toBase58(), amount }
+  return {
+    ata: ata.address.toBase58(),
+    amount,
+    breakdown,
+    mint: mintAddress,
+    mintExplorerUrl: buildAddressExplorerUrl(mintAddress),
+  }
 }
 
 export async function getPurrBalance(verifierWallet: PublicKey): Promise<number> {

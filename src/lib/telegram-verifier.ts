@@ -154,7 +154,15 @@ function initBot(): TelegramBot | null {
 }
 
 // Module-load side effect, intentional: see the comment on initBot() above.
-initBot()
+// Skipped during `next build` (and any other non-serving phase) — Next
+// imports route modules to analyze them at build time, and starting a real
+// Telegram poller there would fight over getUpdates with whatever's
+// actually serving traffic (Telegram 409s one of them, taps silently stop
+// arriving wherever loses).
+const RUNTIME_PHASES = new Set(['phase-development-server', 'phase-production-server'])
+if (RUNTIME_PHASES.has(process.env.NEXT_PHASE ?? '')) {
+  initBot()
+}
 
 function getBot(): TelegramBot | null {
   return g.__trustsaurBot ?? initBot()

@@ -53,11 +53,23 @@ interface VerifyResult {
   liveVerifier?: boolean
 }
 
+interface PurrResult {
+  amount: number
+  breakdown: {
+    base: number
+    speedBonus: number
+    photoBonus: number
+  }
+  mint: string
+  mintExplorerUrl: string
+}
+
 interface PayResult {
   signature: string
   explorerUrl: string
   verifier: string
   amountSol: number
+  purr: PurrResult | null
 }
 
 const EXAMPLE_ACTION =
@@ -427,6 +439,39 @@ export function TrustSaurFeature() {
                     View real transaction on Solana Explorer
                     <ArrowUpRight className="h-3 w-3" />
                   </a>
+
+                  {payment.purr && (
+                    <div className="flex items-center gap-2 rounded-md bg-black/20 p-2">
+                      <Image
+                        src="/token/purr-512.jpg"
+                        alt="$PURR"
+                        width={28}
+                        height={28}
+                        className="h-7 w-7 shrink-0 rounded-full object-cover"
+                      />
+                      <div className="flex-1 space-y-0.5">
+                        <div className="text-sm font-medium text-violet-500">
+                          +{payment.purr.amount} $PURR awarded
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {payment.purr.breakdown.base} base
+                          {payment.purr.breakdown.speedBonus > 0 &&
+                            ` + ${payment.purr.breakdown.speedBonus} speed bonus`}
+                          {payment.purr.breakdown.photoBonus > 0 &&
+                            ` + ${payment.purr.breakdown.photoBonus} photo bonus`}
+                        </div>
+                      </div>
+                      <a
+                        href={payment.purr.mintExplorerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-violet-500 underline-offset-2 hover:underline"
+                      >
+                        Mint
+                        <ArrowUpRight className="h-3 w-3" />
+                      </a>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
