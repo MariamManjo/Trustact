@@ -20,10 +20,26 @@ export interface PaymentResult {
   amountSol: number
 }
 
-function loadKeypair(filename: string): Keypair {
+function loadKeypair(filename: string, envVar: string): Keypair {
+  const fromEnv = process.env[envVar]
+  if (fromEnv) {
+    return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fromEnv)))
+  }
+
+  // Local dev fallback — Vercel's filesystem has no .wallets/ directory,
+  // since it's gitignored and never deployed.
   const filePath = path.join(process.cwd(), '.wallets', filename)
   const secret = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
   return Keypair.fromSecretKey(Uint8Array.from(secret))
+}
+
+function loadDefaultVerifierAddress(): PublicKey {
+  const fromEnv = process.env.DEFAULT_VERIFIER_ADDRESS
+  if (fromEnv) {
+    return new PublicKey(fromEnv)
+  }
+
+  return loadKeypair('verifier.json', 'VERIFIER_SECRET_KEY').publicKey
 }
 
 /**
@@ -33,12 +49,12 @@ function loadKeypair(filename: string): Keypair {
  * registered a real address yet.
  */
 export async function releaseVerificationPayment(recipientAddress?: string): Promise<PaymentResult> {
-  const payer = loadKeypair('payer.json')
+  const payer = loadKeypair('payer.json', 'PAYER_SECRET_KEY')
   const connection = new Connection(RPC_URL, 'confirmed')
 
   const recipient = recipientAddress
     ? new PublicKey(recipientAddress)
-    : loadKeypair('verifier.json').publicKey
+    : loadDefaultVerifierAddress()
 
   const balance = await connection.getBalance(payer.publicKey)
   if (balance < PAYMENT_LAMPORTS) {

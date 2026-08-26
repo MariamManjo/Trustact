@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const payment = await releaseVerificationPayment(getVerifierWinnerWallet(requestId))
+    const payment = await releaseVerificationPayment(await getVerifierWinnerWallet(requestId))
     setCachedPayment(requestId, payment)
     return NextResponse.json({ status: 'approved', verifiedBy, payment })
   } catch (err) {

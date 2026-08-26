@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}))
     const requestId = typeof body?.requestId === 'string' ? body.requestId : undefined
-    const winnerWallet = requestId ? getVerifierWinnerWallet(requestId) : undefined
+    const winnerWallet = requestId ? await getVerifierWinnerWallet(requestId) : undefined
 
     const result = await releaseVerificationPayment(winnerWallet)
     return NextResponse.json(result)

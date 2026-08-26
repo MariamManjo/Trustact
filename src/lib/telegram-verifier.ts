@@ -38,7 +38,7 @@ function getBot(): TelegramBot | null {
       console.error('Telegram polling error:', err.message)
     })
 
-    g.__trustsaurBot.onText(/^\/register(?:\s+(.+))?$/, (msg, match) => {
+    g.__trustsaurBot.onText(/^\/register(?:\s+(.+))?$/, async (msg, match) => {
       const address = match?.[1]?.trim()
       const chatId = msg.chat.id
 
@@ -55,15 +55,15 @@ function getBot(): TelegramBot | null {
         return
       }
 
-      registerVerifierWallet(msg.from!.id, address)
+      await registerVerifierWallet(msg.from!.id, address)
       g.__trustsaurBot?.sendMessage(
         chatId,
         `✅ Registered. Future verification payouts go to:\n${address}`
       )
     })
 
-    g.__trustsaurBot.onText(/^\/mywallet$/, (msg) => {
-      const wallet = getVerifierWallet(msg.from!.id)
+    g.__trustsaurBot.onText(/^\/mywallet$/, async (msg) => {
+      const wallet = await getVerifierWallet(msg.from!.id)
       g.__trustsaurBot?.sendMessage(
         msg.chat.id,
         wallet
@@ -169,7 +169,7 @@ export function getVerifierWinner(requestId: string): VerifierIdentity | undefin
 }
 
 /** The winning verifier's own registered payout wallet, if they've set one. */
-export function getVerifierWinnerWallet(requestId: string): string | undefined {
+export async function getVerifierWinnerWallet(requestId: string): Promise<string | undefined> {
   const winner = g.__trustsaurWinners?.get(requestId)
   return winner ? getVerifierWallet(winner.telegramUserId) : undefined
 }
