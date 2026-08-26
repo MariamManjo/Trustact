@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { ArrowUpRight, MapPin, Star, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export interface JudgeAnswer {
@@ -9,6 +9,8 @@ export interface JudgeAnswer {
   answer: 'yes' | 'no'
   note?: string
   submittedAt: number
+  photoUrl?: string
+  location?: { lat: number; lng: number; mapUrl: string }
 }
 
 function shortWallet(wallet: string): string {
@@ -68,6 +70,23 @@ export function RoundJudgeCards({
               </div>
 
               {a.note && <p className="text-xs text-muted-foreground">{a.note}</p>}
+
+              {a.photoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element -- Blob store hostname is dynamic per-deployment
+                <img src={a.photoUrl} alt="Verifier proof" className="h-32 w-full rounded-md object-cover" />
+              )}
+
+              {a.location && (
+                <a
+                  href={a.location.mapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-violet-400 underline-offset-2 hover:underline"
+                >
+                  <MapPin className="h-3 w-3" /> View location
+                  <ArrowUpRight className="h-3 w-3" />
+                </a>
+              )}
 
               <div className="flex items-center gap-1.5 pt-1">
                 <button

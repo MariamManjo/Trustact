@@ -62,6 +62,8 @@ interface RoundAnswer {
   submittedAt: number
   withinHalfWindow: boolean
   judgment?: 'correct' | 'incorrect'
+  photoUrl?: string
+  location?: { lat: number; lng: number; mapUrl: string }
 }
 
 interface PurrBreakdown {
@@ -108,6 +110,8 @@ export function TrustSaurFeature() {
   const { publicKey } = useWallet()
   const [action, setAction] = useState(EXAMPLE_ACTION)
   const [feeSol, setFeeSol] = useState(DEFAULT_FEE_SOL)
+  const [photoRequired, setPhotoRequired] = useState(false)
+  const [locationRequired, setLocationRequired] = useState(false)
   const [stage, setStage] = useState<Stage>('idle')
   const [check, setCheck] = useState<CheckResult | null>(null)
   const [round, setRound] = useState<Round | null>(null)
@@ -158,6 +162,7 @@ export function TrustSaurFeature() {
           action,
           feeSol,
           askerWallet: publicKey?.toBase58(),
+          proofRequirements: { photoRequired, locationRequired },
         }),
       })
       const data = await res.json()
@@ -277,6 +282,29 @@ export function TrustSaurFeature() {
                 className="w-24 rounded-md border border-white/10 bg-black/20 px-2 py-1 text-sm text-foreground focus:border-violet-500/40 focus:outline-none"
               />
               <span>SOL — split among correct verifiers (min. ~$1)</span>
+            </div>
+          )}
+
+          {stage === 'idle' && (
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={photoRequired}
+                  onChange={(e) => setPhotoRequired(e.target.checked)}
+                  className="accent-violet-500"
+                />
+                Require photo proof
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={locationRequired}
+                  onChange={(e) => setLocationRequired(e.target.checked)}
+                  className="accent-violet-500"
+                />
+                Require location
+              </label>
             </div>
           )}
 

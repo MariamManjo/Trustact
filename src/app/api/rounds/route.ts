@@ -9,11 +9,11 @@ const MIN_FEE_USD = 1
 
 /**
  * POST /api/rounds
- * body: { action: string, feeSol?: number, askerWallet?: string }
+ * body: { action: string, feeSol?: number, askerWallet?: string, proofRequirements?: { photoRequired?: boolean, locationRequired?: boolean } }
  *
  * Runs the AI gatekeeper; if human verification is needed, opens a round up
  * to 5 verifiers can answer. The asker sets the fee (SOL), with a $1
- * equivalent minimum enforced here.
+ * equivalent minimum enforced here, and can require photo/location proof.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +21,8 @@ export async function POST(req: NextRequest) {
     const action = typeof body?.action === 'string' ? body.action : undefined
     const feeSol = typeof body?.feeSol === 'number' ? body.feeSol : undefined
     const askerWallet = typeof body?.askerWallet === 'string' ? body.askerWallet : undefined
+    const photoRequired = body?.proofRequirements?.photoRequired === true
+    const locationRequired = body?.proofRequirements?.locationRequired === true
 
     if (!action || action.trim().length < 5) {
       return NextResponse.json(
@@ -50,10 +52,7 @@ export async function POST(req: NextRequest) {
       question: assessment.verificationQuestion,
       askerWallet,
       feeLamports: requestedLamports,
-      // Photo/location capture ships in a later phase — forced off for now
-      // regardless of what's requested, so the round never gets stuck
-      // waiting on proof the UI can't yet collect.
-      proofRequirements: { photoRequired: false, locationRequired: false },
+      proofRequirements: { photoRequired, locationRequired },
       windowSeconds: VERIFICATION_WINDOW_SECONDS,
     })
 
