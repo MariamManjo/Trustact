@@ -19,8 +19,10 @@ type FileStore = Record<string, { correct: number; incorrect: number }>
 // $PURR already minted (no freeze/burn authority for that), so this counter
 // is what gates *future* standing (tiers.ts) instead.
 function getRedis(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  // Vercel's Upstash marketplace integration injects KV_REST_API_URL/TOKEN,
+  // not the UPSTASH_REDIS_REST_* names Upstash's own docs use — support both.
+  const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN
   if (!url || !token) return null
   return new Redis({ url, token })
 }
