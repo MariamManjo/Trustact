@@ -2,6 +2,7 @@ import TelegramBot from 'node-telegram-bot-api'
 import { randomUUID } from 'crypto'
 import type { PaymentResult } from './solana-pay'
 import { registerVerifierWallet, isValidSolanaAddress, getVerifierWallet } from './verifier-wallets'
+import { VERIFICATION_WINDOW_SECONDS } from './verification-window'
 
 type VerifierAnswer = 'yes' | 'no'
 type PendingState = 'pending' | VerifierAnswer
@@ -10,6 +11,7 @@ export interface VerifierIdentity {
   telegramUserId: number
   username?: string
   firstName?: string
+  answeredWithinHalfWindow: boolean
 }
 
 interface GlobalWithBot {
@@ -17,6 +19,7 @@ interface GlobalWithBot {
   __trustsaurPending?: Map<string, PendingState>
   __trustsaurPayments?: Map<string, PaymentResult>
   __trustsaurWinners?: Map<string, VerifierIdentity>
+  __trustsaurRequestedAt?: Map<string, number>
 }
 
 const g = globalThis as unknown as GlobalWithBot
@@ -33,6 +36,7 @@ function getBot(): TelegramBot | null {
     g.__trustsaurBot = new TelegramBot(token, { polling: true })
     g.__trustsaurPending = new Map()
     g.__trustsaurWinners = new Map()
+    g.__trustsaurRequestedAt = new Map()
 
     g.__trustsaurBot.on('polling_error', (err) => {
       console.error('Telegram polling error:', err.message)
@@ -103,10 +107,16 @@ function getBot(): TelegramBot | null {
       }
       g.__trustsaurPending?.set(requestId, answer)
 
+      const requestedAt = g.__trustsaurRequestedAt?.get(requestId)
+      const answeredWithinHalfWindow = requestedAt
+        ? Date.now() - requestedAt <= (VERIFICATION_WINDOW_SECONDS * 1000) / 2
+        : false
+
       const identity: VerifierIdentity = {
         telegramUserId: query.from.id,
         username: query.from.username,
         firstName: query.from.first_name,
+        answeredWithinHalfWindow,
       }
       g.__trustsaurWinners?.set(requestId, identity)
 
@@ -145,6 +155,7 @@ export async function askVerifier(question: string): Promise<string> {
 
   const requestId = randomUUID()
   g.__trustsaurPending?.set(requestId, 'pending')
+  g.__trustsaurRequestedAt?.set(requestId, Date.now())
 
   await bot.sendMessage(chatId, `🦖 TrustSaur needs a quick check — first to answer wins:\n\n${question}`, {
     reply_markup: {

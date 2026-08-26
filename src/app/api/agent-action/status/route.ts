@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { PublicKey } from '@solana/web3.js'
 import {
   getVerifierStatus,
   getVerifierWinner,
@@ -7,6 +8,7 @@ import {
   setCachedPayment,
 } from '@/lib/telegram-verifier'
 import { releaseVerificationPayment } from '@/lib/solana-pay'
+import { awardPurr } from '@/lib/purr-token'
 import { requireAgentApiKey } from '@/lib/agent-auth'
 
 /**
@@ -48,6 +50,19 @@ export async function GET(req: NextRequest) {
   try {
     const payment = await releaseVerificationPayment(await getVerifierWinnerWallet(requestId))
     setCachedPayment(requestId, payment)
+
+    // $PURR is the reputation layer, not the real money — a failed mint must
+    // never block or roll back the SOL payment above.
+    try {
+      await awardPurr(new PublicKey(payment.verifier), {
+        withinHalfTimeWindow: winner?.answeredWithinHalfWindow ?? false,
+        // No photo-proof capture exists yet (roadmap) — never true today.
+        hasPhotoProof: false,
+      })
+    } catch (purrErr) {
+      console.error('agent-action $PURR award error:', purrErr)
+    }
+
     return NextResponse.json({ status: 'approved', verifiedBy, payment })
   } catch (err) {
     console.error('agent-action payment error:', err)

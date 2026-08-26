@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, XCircle, Loader2, Clock, AlertTriangle, ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { VERIFICATION_WINDOW_SECONDS } from '@/lib/verification-window'
 
 function Mascot({
   className = 'h-11 w-11',
@@ -41,7 +42,6 @@ type Stage =
   | 'proceeding'
   | 'paid'
 
-const VERIFIER_TIMEOUT_SECONDS = 90
 const POLL_INTERVAL_MS = 1500
 
 interface VerifyResult {
@@ -112,7 +112,7 @@ export function TrustSaurFeature() {
     const timeout = setTimeout(() => {
       stopPolling()
       setStage('timed-out')
-    }, VERIFIER_TIMEOUT_SECONDS * 1000)
+    }, VERIFICATION_WINDOW_SECONDS * 1000)
 
     pollCleanupRef.current = () => {
       clearInterval(interval)
@@ -368,7 +368,7 @@ export function TrustSaurFeature() {
                 <CardContent className="space-y-3">
                   <p className="flex items-center gap-2 text-sm font-medium text-amber-500">
                     <Clock className="h-4 w-4 shrink-0" />
-                    No response yet after {VERIFIER_TIMEOUT_SECONDS}s
+                    No response yet after {VERIFICATION_WINDOW_SECONDS}s
                   </p>
                   <p className="text-xs text-muted-foreground">
                     In production this would try another verifier automatically. For now:

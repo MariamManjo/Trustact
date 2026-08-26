@@ -9,6 +9,7 @@ import {
 } from '@solana/web3.js'
 import fs from 'fs'
 import path from 'path'
+import { loadPayerKeypair } from './solana-keys'
 
 const RPC_URL = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com'
 const PAYMENT_LAMPORTS = 0.01 * LAMPORTS_PER_SOL // stand-in for a $0.50-1 verification fee
@@ -20,26 +21,17 @@ export interface PaymentResult {
   amountSol: number
 }
 
-function loadKeypair(filename: string, envVar: string): Keypair {
-  const fromEnv = process.env[envVar]
-  if (fromEnv) {
-    return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fromEnv)))
-  }
-
-  // Local dev fallback — Vercel's filesystem has no .wallets/ directory,
-  // since it's gitignored and never deployed.
-  const filePath = path.join(process.cwd(), '.wallets', filename)
-  const secret = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-  return Keypair.fromSecretKey(Uint8Array.from(secret))
-}
-
 function loadDefaultVerifierAddress(): PublicKey {
   const fromEnv = process.env.DEFAULT_VERIFIER_ADDRESS
   if (fromEnv) {
     return new PublicKey(fromEnv)
   }
 
-  return loadKeypair('verifier.json', 'VERIFIER_SECRET_KEY').publicKey
+  // Local dev fallback — Vercel's filesystem has no .wallets/ directory,
+  // since it's gitignored and never deployed.
+  const filePath = path.join(process.cwd(), '.wallets', 'verifier.json')
+  const secret = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+  return Keypair.fromSecretKey(Uint8Array.from(secret)).publicKey
 }
 
 /**
@@ -49,7 +41,7 @@ function loadDefaultVerifierAddress(): PublicKey {
  * registered a real address yet.
  */
 export async function releaseVerificationPayment(recipientAddress?: string): Promise<PaymentResult> {
-  const payer = loadKeypair('payer.json', 'PAYER_SECRET_KEY')
+  const payer = loadPayerKeypair()
   const connection = new Connection(RPC_URL, 'confirmed')
 
   const recipient = recipientAddress
