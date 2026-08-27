@@ -1,16 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type MouseEvent } from 'react'
 import Image from 'next/image'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 
 interface Step {
   eyebrow: string
   title: string
   body: string
-  /** crop of the source photo — gives each step a different "pose" without new art */
-  focus: 'face' | 'upper' | 'full'
+  image: string
 }
 
 const STEPS: Step[] = [
@@ -18,26 +17,70 @@ const STEPS: Step[] = [
     eyebrow: '1. The problem',
     title: 'Your AI agent is about to spend your money.',
     body: 'Booking a table, buying an item, holding a reservation — autonomous agents act on what they know, not on what’s actually true right now.',
-    focus: 'face',
+    image: '/onboarding/robo-chicken-v2.png',
   },
   {
     eyebrow: '2. The fix',
     title: 'It checks with a real human first.',
     body: 'Before committing money, the agent asks one real-time question a real person can answer in seconds — something no model can know from training data.',
-    focus: 'upper',
+    image: '/onboarding/verifier-dog-v2.png',
   },
   {
     eyebrow: '3. The payment',
     title: 'Verified, then paid automatically on Solana.',
     body: 'Once a human confirms, payment releases on its own — a real on-chain transaction, not a manual step.',
-    focus: 'full',
+    image: '/onboarding/celebrate-v2.png',
   },
 ]
 
-const FOCUS_STYLES: Record<Step['focus'], { objectPosition: string; scale: number }> = {
-  face: { objectPosition: '50% 20%', scale: 1.7 },
-  upper: { objectPosition: '50% 15%', scale: 1.25 },
-  full: { objectPosition: '50% 0%', scale: 1 },
+/** Character art tilts/lifts toward the cursor instead of sitting static. */
+function TiltCharacter({ src, alt }: { src: string; alt: string }) {
+  const x = useMotionValue(0)
+  const y = useMotionValue(0)
+  const spring = { stiffness: 150, damping: 15, mass: 0.5 }
+  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [14, -14]), spring)
+  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-14, 14]), spring)
+  const translateX = useSpring(useTransform(x, [-0.5, 0.5], [-12, 12]), spring)
+  const translateY = useSpring(useTransform(y, [-0.5, 0.5], [-12, 12]), spring)
+
+  function handleMouseMove(e: MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    x.set((e.clientX - rect.left) / rect.width - 0.5)
+    y.set((e.clientY - rect.top) / rect.height - 0.5)
+  }
+
+  function handleMouseLeave() {
+    x.set(0)
+    y.set(0)
+  }
+
+  return (
+    <div
+      className="relative flex h-64 w-64 shrink-0 items-center justify-center md:h-[380px] md:w-[380px]"
+      style={{ perspective: 800 }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <motion.div
+        className="absolute h-56 w-56 rounded-full bg-violet-500/25 blur-3xl md:h-72 md:w-72"
+        animate={{ scale: [1, 1.15, 1], opacity: [0.35, 0.55, 0.35] }}
+        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="relative h-full w-full"
+        style={{ rotateX, rotateY, x: translateX, y: translateY, transformStyle: 'preserve-3d' }}
+      >
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          sizes="(min-width: 768px) 380px, 256px"
+          className="object-contain drop-shadow-[0_25px_45px_rgba(139,92,246,0.35)]"
+          priority
+        />
+      </motion.div>
+    </div>
+  )
 }
 
 export function OnboardingIntro({ onComplete }: { onComplete: () => void }) {
@@ -104,27 +147,7 @@ export function OnboardingIntro({ onComplete }: { onComplete: () => void }) {
                 <p className="mx-auto max-w-md text-base text-muted-foreground md:mx-0 md:text-lg">{step.body}</p>
               </div>
 
-              <div className="relative flex h-64 w-64 shrink-0 items-center justify-center md:h-[360px] md:w-[360px]">
-                <motion.div
-                  className="absolute h-56 w-56 rounded-full bg-violet-500/30 blur-3xl md:h-72 md:w-72"
-                  animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.6, 0.4] }}
-                  transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-                />
-                <div className="relative h-full w-full overflow-hidden rounded-3xl border border-white/10 shadow-2xl">
-                  <Image
-                    src="/mascot.jpg"
-                    alt=""
-                    width={400}
-                    height={400}
-                    className="h-full w-full object-cover"
-                    style={{
-                      objectPosition: FOCUS_STYLES[step.focus].objectPosition,
-                      transform: `scale(${FOCUS_STYLES[step.focus].scale})`,
-                    }}
-                    priority
-                  />
-                </div>
-              </div>
+              <TiltCharacter src={step.image} alt="" />
             </motion.div>
           </AnimatePresence>
         </div>
