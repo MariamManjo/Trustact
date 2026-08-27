@@ -9,11 +9,16 @@ function getErrorMessage(error: unknown): string {
 
 /**
  * POST /api/rounds/[id]/judge
- * body: { judgments: Record<wallet, 'correct'|'incorrect'>, bonusWinnerWallet?: string }
+ * body: { askerWallet?: string, judgments: Record<wallet, 'correct'|'incorrect'>, bonusWinnerWallet?: string }
  *
  * Judges every answer and pays out in one call. Idempotent: if the round is
  * already resolved, returns the cached result instead of re-paying — a
  * doubled network request must never double-spend real SOL.
+ *
+ * If the round was created with an askerWallet, only that wallet may judge
+ * it — otherwise any caller could resolve someone else's round. Rounds
+ * created without an askerWallet (e.g. the headless agent API) can't be
+ * ownership-checked and are left to the auto-judge majority-vote fallback.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -33,8 +38,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const body = await req.json().catch(() => ({}))
+    const askerWallet = typeof body?.askerWallet === 'string' ? body.askerWallet : undefined
     const judgments = body?.judgments as Record<string, 'correct' | 'incorrect'> | undefined
     const bonusWinnerWallet = typeof body?.bonusWinnerWallet === 'string' ? body.bonusWinnerWallet : undefined
+
+    if (round.askerWallet && round.askerWallet !== askerWallet) {
+      return NextResponse.json({ error: 'Only the wallet that asked this question can judge it.' }, { status: 403 })
+    }
 
     if (!judgments || typeof judgments !== 'object') {
       return NextResponse.json({ error: 'judgments is required.' }, { status: 400 })

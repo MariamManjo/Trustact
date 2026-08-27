@@ -9,12 +9,14 @@ function getErrorMessage(error: unknown): string {
 
 /**
  * POST /api/rounds/[id]/retry-payout
+ * body: { askerWallet?: string }
  *
  * Safety net for when judgments were saved but the SOL transfer then threw
  * (e.g. a devnet RPC hiccup) — re-attempts payout from the already-stored
- * judgments without asking the asker to re-judge.
+ * judgments without asking the asker to re-judge. Same ownership check as
+ * /judge — see that route's comment for the rationale.
  */
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   try {
@@ -25,6 +27,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
     if (round.status === 'resolved') {
       return NextResponse.json(round)
+    }
+
+    const body = await req.json().catch(() => ({}))
+    const askerWallet = typeof body?.askerWallet === 'string' ? body.askerWallet : undefined
+    if (round.askerWallet && round.askerWallet !== askerWallet) {
+      return NextResponse.json({ error: 'Only the wallet that asked this question can retry payout.' }, { status: 403 })
     }
 
     const unjudged = round.answers.some((a) => !a.judgment)

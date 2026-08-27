@@ -193,7 +193,7 @@ export function TrustSaurFeature() {
       const res = await fetch(`/api/rounds/${round.id}/judge`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ judgments, bonusWinnerWallet }),
+        body: JSON.stringify({ askerWallet: publicKey?.toBase58(), judgments, bonusWinnerWallet }),
       })
       const data = (await res.json()) as Round
       if (!res.ok) throw new Error((data as unknown as { error?: string }).error ?? 'Judging failed.')
