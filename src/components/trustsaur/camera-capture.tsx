@@ -46,8 +46,17 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
         await videoRef.current.play()
       }
       setStage('streaming')
-    } catch {
-      setError('Could not access your camera — check permissions and try again.')
+    } catch (err) {
+      const name = err instanceof Error ? err.name : ''
+      const message =
+        name === 'NotAllowedError'
+          ? 'Camera access is blocked. Enable it via the aA icon in the address bar → Website Settings → Camera, then try again.'
+          : name === 'NotFoundError'
+            ? 'No camera found on this device.'
+            : name === 'NotReadableError'
+              ? 'Camera is already in use by another app.'
+              : 'Could not access your camera — check permissions and try again.'
+      setError(message)
       setStage('error')
     }
   }

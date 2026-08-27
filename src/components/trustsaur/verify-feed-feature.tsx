@@ -109,10 +109,20 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
         setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         setLocating(false)
       },
-      () => {
-        setLocationError('Could not get your location — check permissions and try again.')
+      (err) => {
+        // No `timeout` here previously — if the fix stalls (a known iOS
+        // Safari quirk), getCurrentPosition hangs forever with neither
+        // callback firing, so "Getting location…" never resolves.
+        const message =
+          err.code === err.PERMISSION_DENIED
+            ? 'Location access is blocked. Enable it via the aA icon in the address bar → Website Settings → Location, then try again.'
+            : err.code === err.TIMEOUT
+              ? 'Location took too long — check your signal and try again.'
+              : 'Could not get your location — try again.'
+        setLocationError(message)
         setLocating(false)
-      }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     )
   }
 
