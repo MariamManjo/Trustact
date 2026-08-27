@@ -218,13 +218,7 @@ export function TrustactFeature() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div
-              className="relative rounded-2xl py-2"
-              style={{
-                backgroundImage:
-                  'radial-gradient(ellipse 90% 70% at 50% 20%, rgba(139,92,246,0.16) 0%, rgba(0,0,0,0) 70%)',
-              }}
-            >
+            <div className="relative py-2">
               {[0, 1, 2].map((i) => (
                 <motion.span
                   key={i}
