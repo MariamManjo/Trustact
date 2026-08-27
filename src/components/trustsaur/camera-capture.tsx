@@ -32,6 +32,18 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
 
   useEffect(() => stopStream, [])
 
+  // The <video> element only exists once stage flips to 'streaming' (it's
+  // conditionally rendered below), so attaching the stream inside
+  // startCamera() — before that flip has re-rendered — always hit a null
+  // ref and silently no-op'd, leaving the feed black even though the
+  // permission grant and stream itself were fine. Attaching it here, after
+  // the element has actually mounted, is what makes it show.
+  useEffect(() => {
+    if (stage !== 'streaming' || !videoRef.current || !streamRef.current) return
+    videoRef.current.srcObject = streamRef.current
+    videoRef.current.play().catch(() => {})
+  }, [stage])
+
   async function startCamera() {
     setError(null)
     setStage('starting')
@@ -41,10 +53,6 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
         audio: false,
       })
       streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
       setStage('streaming')
     } catch (err) {
       const name = err instanceof Error ? err.name : ''
