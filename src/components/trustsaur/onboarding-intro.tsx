@@ -16,20 +16,26 @@ const STEPS: Step[] = [
   {
     eyebrow: '1. The problem',
     title: 'Your AI agent is about to spend your money.',
-    body: 'Booking a table, buying an item, holding a reservation — autonomous agents act on what they know, not on what’s actually true right now.',
-    image: '/onboarding/robo-chicken-v2.png',
+    body: 'It acts on what it knows — not on what’s true right now.',
+    image: '/onboarding/walking.png',
   },
   {
-    eyebrow: '2. The fix',
-    title: 'It checks with a real human first.',
-    body: 'Before committing money, the agent asks one real-time question a real person can answer in seconds — something no model can know from training data.',
-    image: '/onboarding/verifier-dog-v2.png',
+    eyebrow: '2. The risk',
+    title: 'It could be wrong, and it won’t slow down.',
+    body: 'No model knows if that table’s still open, or that price still holds.',
+    image: '/onboarding/running.png',
   },
   {
-    eyebrow: '3. The payment',
-    title: 'Verified, then paid automatically on Solana.',
-    body: 'Once a human confirms, payment releases on its own — a real on-chain transaction, not a manual step.',
-    image: '/onboarding/celebrate-v2.png',
+    eyebrow: '3. The fix',
+    title: 'One real human checks first.',
+    body: 'A live question, answered in seconds, by someone who actually knows.',
+    image: '/onboarding/landing.png',
+  },
+  {
+    eyebrow: '4. The payout',
+    title: 'Verified, then paid — automatically.',
+    body: 'The moment it’s confirmed, payment fires on-chain. No manual step.',
+    image: '/onboarding/jumping.png',
   },
 ]
 
@@ -58,15 +64,23 @@ export function OnboardingIntro({ onComplete }: { onComplete: () => void }) {
       }}
     >
       <div className="mx-auto flex min-h-[80vh] max-w-5xl flex-col justify-between px-6 py-8 md:px-12 md:py-10">
-        <div className="flex items-center justify-end">
-          <div className="flex items-center gap-3 text-sm font-medium">
-            <span className="text-muted-foreground">
-              Step {index + 1} of {STEPS.length}
-            </span>
-            <button onClick={finish} className="text-white underline-offset-2 hover:underline">
-              Skip
-            </button>
+        <div className="flex items-center gap-4">
+          <div className="flex flex-1 gap-1.5">
+            {STEPS.map((_, i) => (
+              <div key={i} className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500 ease-out"
+                  style={{ width: i <= index ? '100%' : '0%' }}
+                />
+              </div>
+            ))}
           </div>
+          <button
+            onClick={finish}
+            className="shrink-0 text-sm font-medium text-muted-foreground transition-colors hover:text-white"
+          >
+            Skip
+          </button>
         </div>
 
         <div className="relative flex flex-1 items-center overflow-hidden py-8">
@@ -94,22 +108,6 @@ export function OnboardingIntro({ onComplete }: { onComplete: () => void }) {
         </div>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-center gap-2 md:justify-start">
-            {STEPS.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  setDirection(i > index ? 1 : -1)
-                  setIndex(i)
-                }}
-                className={`h-2 rounded-full transition-all ${
-                  i === index ? 'w-6 bg-violet-500' : 'w-2 bg-white/15'
-                }`}
-                aria-label={`Go to step ${i + 1}`}
-              />
-            ))}
-          </div>
-
           <div className="flex justify-center gap-2 md:justify-end">
             {index > 0 && (
               <button
