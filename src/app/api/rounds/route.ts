@@ -4,6 +4,7 @@ import { assessAgentAction } from '@/lib/verify-action'
 import { createRound } from '@/lib/verification-rounds'
 import { usdToLamports } from '@/lib/sol-price'
 import { VERIFICATION_WINDOW_SECONDS } from '@/lib/verification-window'
+import { notifyNewRound } from '@/lib/notify-verifiers'
 
 const MIN_FEE_USD = 1
 
@@ -55,6 +56,8 @@ export async function POST(req: NextRequest) {
       proofRequirements: { photoRequired, locationRequired },
       windowSeconds: VERIFICATION_WINDOW_SECONDS,
     })
+
+    await notifyNewRound(round)
 
     return NextResponse.json({
       ...assessment,

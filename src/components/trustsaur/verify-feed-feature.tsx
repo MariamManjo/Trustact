@@ -1,13 +1,83 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { LAMPORTS_PER_SOL } from '@solana/web3.js'
-import { Camera, CheckCircle2, MapPin, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { Bell, Camera, CheckCircle2, MapPin, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ConnectWalletModal } from './connect-wallet-modal'
 import { useOpenRounds, useReputation, useSubmitAnswer, type OpenRoundSummary } from './rounds-data-access'
+
+function NotifySignup() {
+  const [email, setEmail] = useState('')
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle')
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    setStatus('submitting')
+    setError(null)
+    try {
+      const res = await fetch('/api/notify-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Something went wrong.')
+      setStatus('done')
+    } catch (err) {
+      setStatus('error')
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    }
+  }
+
+  if (status === 'done') {
+    return (
+      <Card className="py-4">
+        <CardContent className="flex items-center gap-2 text-sm font-medium text-violet-500">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          You&apos;re in — we&apos;ll email {email} when a new question opens.
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="py-4">
+      <CardContent>
+        <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
+          <label htmlFor="notify-email" className="sr-only">
+            Email address
+          </label>
+          <div className="flex flex-1 items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3">
+            <Bell className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <input
+              id="notify-email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full bg-transparent py-2 text-sm placeholder:text-muted-foreground/60 focus:outline-none"
+            />
+          </div>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={status === 'submitting'}
+            className="h-9 shrink-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-xs font-medium text-white hover:from-violet-400 hover:to-fuchsia-400 disabled:opacity-50"
+          >
+            {status === 'submitting' ? 'Signing up…' : 'Notify me about new questions'}
+          </Button>
+        </form>
+        {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      </CardContent>
+    </Card>
+  )
+}
 
 function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
   const { connected, publicKey } = useWallet()
@@ -215,6 +285,8 @@ export function VerifyFeedFeature() {
         </div>
         <ReputationBadge />
       </div>
+
+      <NotifySignup />
 
       {isLoading && <p className="text-sm text-muted-foreground">Loading open questions…</p>}
 
