@@ -83,9 +83,9 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
                 </li>
               ))}
             </ul>
-            <div className="flex flex-col gap-3">
-              <HeaderWalletPill />
-              <ClusterUiSelect />
+            <div className="flex flex-col gap-2">
+              <HeaderWalletPill block />
+              <ClusterUiSelect block />
             </div>
           </div>
         </div>

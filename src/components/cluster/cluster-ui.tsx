@@ -53,14 +53,19 @@ export function ClusterChecker({ children }: { children: ReactNode }) {
   return children
 }
 
-export function ClusterUiSelect() {
+/** `block`: fills the width with a flat h-10 shape, matching the mobile menu's nav rows instead of the header's pill. */
+export function ClusterUiSelect({ block = false }: { block?: boolean } = {}) {
   const { clusters, setCluster, cluster } = useCluster()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className="rounded-full border-white/10 bg-white/5 text-neutral-300 hover:bg-white/10 hover:text-white"
+          className={
+            block
+              ? 'h-10 w-full justify-start rounded-lg border-white/10 bg-white/5 text-neutral-300 hover:bg-white/10 hover:text-white'
+              : 'rounded-full border-white/10 bg-white/5 text-neutral-300 hover:bg-white/10 hover:text-white'
+          }
         >
           {cluster.name}
         </Button>
