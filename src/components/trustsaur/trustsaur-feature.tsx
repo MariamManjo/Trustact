@@ -209,7 +209,7 @@ export function TrustactFeature() {
   const answersCount = round?.answers.length ?? 0
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 pt-4 pb-10">
+    <div className="mx-auto max-w-2xl space-y-8 pb-10">
       <AnimatePresence>
         {stage === 'idle' && (
           <motion.div
@@ -234,7 +234,7 @@ export function TrustactFeature() {
                   transition={{ duration: 3 + i * 0.6, repeat: Infinity, ease: 'easeInOut', delay: i * 0.5 }}
                 />
               ))}
-              <div className="relative z-10 px-6 pt-3 text-center">
+              <div className="relative z-10 px-6 pt-1 text-center">
                 <p className="text-[1.8rem] leading-tight font-black tracking-tight text-balance text-white md:text-[2.1rem]">
                   Before it spends your money,
                   <br />
