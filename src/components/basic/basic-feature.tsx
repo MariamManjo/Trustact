@@ -31,7 +31,7 @@ export default function BasicFeature() {
         onClick={() => setConnectOpen(true)}
         className="h-10 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-400 hover:to-fuchsia-400"
       >
-        Connect wallet
+        Sign in
       </Button>
       <ConnectWalletModal open={connectOpen} onOpenChange={setConnectOpen} />
     </div>

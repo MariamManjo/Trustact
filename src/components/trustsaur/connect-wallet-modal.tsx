@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletReadyState, type WalletName } from '@solana/wallet-adapter-base'
-import { ArrowLeft, Search, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { ArrowLeft, ChevronRight, Search, X } from 'lucide-react'
 import { useSignIn } from './auth-session-data-access'
 
 type Step = 'list' | 'connecting'
@@ -242,6 +241,14 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
 
           {step === 'list' && (
             <div className="px-4 pb-4">
+              <p className="mb-3 text-center text-xs text-muted-foreground">
+                By connecting a wallet, you agree to our{' '}
+                <a href="#" className="text-violet-400 underline underline-offset-2 hover:text-violet-300">
+                  Terms of Service
+                </a>
+                .
+              </p>
+
               <div className="relative mb-3">
                 <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
@@ -256,23 +263,26 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
                 <div className="mb-3 rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-400">{inlineError}</div>
               )}
 
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {filteredEntries.map((entry) => (
                   <button
                     key={entry.name}
                     onClick={() => handleSelectEntry(entry)}
-                    className="flex h-14 w-full items-center gap-3 rounded-xl px-2 text-left transition-colors hover:bg-white/5"
+                    className="flex h-14 w-full items-center gap-3 rounded-xl border border-white/10 px-3 text-left transition-colors hover:border-white/20 hover:bg-white/5"
                   >
                     <WalletIcon entry={entry} />
                     <span className="flex-1 text-sm font-medium">{entry.name}</span>
-                    <span
-                      className={cn(
-                        'text-xs',
-                        entry.installed ? 'text-violet-400' : 'text-muted-foreground'
-                      )}
-                    >
-                      {entry.installed ? entry.label : entry.mobileDeepLink && isMobileDevice() ? 'Open' : 'Install'}
-                    </span>
+                    {entry.installed && entry.label && (
+                      <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-400">
+                        {entry.label}
+                      </span>
+                    )}
+                    {!entry.installed && (
+                      <span className="text-xs text-muted-foreground">
+                        {entry.mobileDeepLink && isMobileDevice() ? 'Open' : 'Install'}
+                      </span>
+                    )}
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                   </button>
                 ))}
 
@@ -280,10 +290,6 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
                   <p className="py-6 text-center text-sm text-muted-foreground">No wallets found.</p>
                 )}
               </div>
-
-              <p className="mt-4 text-center text-xs text-muted-foreground">
-                By continuing, you agree to our Terms &amp; Privacy.
-              </p>
             </div>
           )}
 
