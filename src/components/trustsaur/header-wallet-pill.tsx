@@ -42,7 +42,7 @@ export function HeaderWalletPill() {
   return (
     <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/20 py-1 pr-1 pl-3 text-sm">
       <span className="font-medium tabular-nums">{lamports !== undefined ? formatSol(lamports) : '…'}</span>
-      <Image src="/mascot.jpg" alt="" width={24} height={24} className="h-6 w-6 rounded-full object-cover" />
+      <Image src="/mascot.png" alt="" width={24} height={24} className="h-6 w-6 object-contain" />
     </div>
   )
 }

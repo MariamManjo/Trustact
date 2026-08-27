@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { TrustSaurFeature } from '@/components/trustsaur/trustsaur-feature'
+import { TrustactFeature } from '@/components/trustsaur/trustsaur-feature'
 import { OnboardingIntro } from '@/components/trustsaur/onboarding-intro'
 
 export default function Home() {
@@ -11,5 +11,5 @@ export default function Home() {
     return <OnboardingIntro onComplete={() => setShowOnboarding(false)} />
   }
 
-  return <TrustSaurFeature />
+  return <TrustactFeature />
 }

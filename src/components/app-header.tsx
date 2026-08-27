@@ -7,6 +7,7 @@ import { Menu, X } from 'lucide-react'
 import { ThemeSelect } from '@/components/theme-select'
 import { ClusterUiSelect } from './cluster/cluster-ui'
 import { HeaderWalletPill } from '@/components/trustsaur/header-wallet-pill'
+import { BrandMark } from '@/components/trustsaur/brand-mark'
 
 export function AppHeader({ links = [] }: { links: { label: string; path: string }[] }) {
   const pathname = usePathname()
@@ -17,18 +18,20 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
   }
 
   return (
-    <header className="relative z-50 px-4 py-2 bg-neutral-100 dark:bg-neutral-900 dark:text-neutral-400">
-      <div className="mx-auto flex justify-between items-center">
-        <div className="flex items-baseline gap-4">
-          <Link className="text-xl hover:text-neutral-500 dark:hover:text-white" href="/">
-            <span>TrustSaur</span>
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0710]/80 px-4 py-2.5 text-neutral-300 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between">
+        <div className="flex items-center gap-6">
+          <Link className="transition-opacity hover:opacity-80" href="/">
+            <BrandMark iconClassName="h-8 w-8" wordmarkClassName="text-lg" />
           </Link>
           <div className="hidden md:flex items-center">
-            <ul className="flex gap-4 flex-nowrap items-center">
+            <ul className="flex flex-nowrap items-center gap-1">
               {links.map(({ label, path }) => (
                 <li key={path}>
                   <Link
-                    className={`hover:text-neutral-500 dark:hover:text-white ${isActive(path) ? 'text-neutral-500 dark:text-white' : ''}`}
+                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                      isActive(path) ? 'bg-white/10 text-white' : 'text-neutral-400 hover:text-white'
+                    }`}
                     href={path}
                   >
                     {label}
@@ -39,24 +42,33 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
           </div>
         </div>
 
-        <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setShowMenu(!showMenu)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-neutral-300 hover:bg-white/10 hover:text-white md:hidden"
+          onClick={() => setShowMenu(!showMenu)}
+        >
           {showMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </Button>
 
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden items-center gap-2 md:flex">
           <HeaderWalletPill />
-          <ClusterUiSelect />
-          <ThemeSelect />
+          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1">
+            <ClusterUiSelect />
+            <ThemeSelect />
+          </div>
         </div>
 
         {showMenu && (
-          <div className="md:hidden fixed inset-x-0 top-[52px] bottom-0 bg-neutral-100/95 dark:bg-neutral-900/95 backdrop-blur-sm">
-            <div className="flex flex-col p-4 gap-4 border-t dark:border-neutral-800">
-              <ul className="flex flex-col gap-4">
+          <div className="fixed inset-x-0 top-[57px] bottom-0 z-40 bg-[#0a0710]/95 backdrop-blur-sm md:hidden">
+            <div className="flex flex-col gap-4 border-t border-white/10 p-4">
+              <ul className="flex flex-col gap-1">
                 {links.map(({ label, path }) => (
                   <li key={path}>
                     <Link
-                      className={`hover:text-neutral-500 dark:hover:text-white block text-lg py-2  ${isActive(path) ? 'text-neutral-500 dark:text-white' : ''} `}
+                      className={`block rounded-lg px-3 py-2.5 text-lg font-medium ${
+                        isActive(path) ? 'bg-white/10 text-white' : 'text-neutral-400 hover:text-white'
+                      }`}
                       href={path}
                       onClick={() => setShowMenu(false)}
                     >
@@ -65,10 +77,12 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
                   </li>
                 ))}
               </ul>
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3">
                 <HeaderWalletPill />
-                <ClusterUiSelect />
-                <ThemeSelect />
+                <div className="flex items-center gap-2">
+                  <ClusterUiSelect />
+                  <ThemeSelect />
+                </div>
               </div>
             </div>
           </div>

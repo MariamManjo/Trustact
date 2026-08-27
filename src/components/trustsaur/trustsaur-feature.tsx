@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -8,26 +8,16 @@ import { CheckCircle2, XCircle, Clock, AlertTriangle, ArrowUpRight } from 'lucid
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { RoundJudgeCards } from './round-judge-cards'
+import { TiltCharacter } from './tilt-character'
 
-function Mascot({
-  className = 'h-11 w-11',
-  bounce = false,
-  hero = false,
-  style,
-}: {
-  className?: string
-  bounce?: boolean
-  hero?: boolean
-  style?: CSSProperties
-}) {
+function Mascot({ className = 'h-11 w-11', bounce = false }: { className?: string; bounce?: boolean }) {
   return (
     <Image
-      src="/mascot.jpg"
-      alt="TrustSaur"
-      width={hero ? 400 : 88}
-      height={hero ? 400 : 88}
-      style={style}
-      className={`${className} ${hero ? 'object-cover object-top' : 'rounded-full object-cover'} ${bounce ? 'animate-bounce' : ''}`}
+      src="/mascot.png"
+      alt="Trustact"
+      width={88}
+      height={88}
+      className={`${className} object-contain ${bounce ? 'animate-bounce' : ''}`}
       priority
     />
   )
@@ -106,7 +96,7 @@ function formatWallet(wallet: string): string {
   return `${wallet.slice(0, 4)}…${wallet.slice(-4)}`
 }
 
-export function TrustSaurFeature() {
+export function TrustactFeature() {
   const { publicKey } = useWallet()
   const [action, setAction] = useState(EXAMPLE_ACTION)
   const [feeSol, setFeeSol] = useState(DEFAULT_FEE_SOL)
@@ -221,7 +211,7 @@ export function TrustSaurFeature() {
   return (
     <div className="mx-auto max-w-2xl space-y-8 py-10">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold tracking-tight text-violet-500">TrustSaur</span>
+        <span className="text-sm font-semibold tracking-tight text-violet-500">Trustact</span>
       </div>
 
       <AnimatePresence>
@@ -244,14 +234,13 @@ export function TrustSaurFeature() {
                   paid automatically on Solana.
                 </p>
               </div>
-              <div className="flex justify-center pt-4">
-                <Mascot
-                  hero
-                  className="h-72 w-72 -mb-6 md:h-80 md:w-80 md:-mb-8"
-                  style={{
-                    maskImage: 'radial-gradient(closest-side, black 62%, transparent 92%)',
-                    WebkitMaskImage: 'radial-gradient(closest-side, black 62%, transparent 92%)',
-                  }}
+              <div className="flex justify-center pt-2 pb-2">
+                <TiltCharacter
+                  src="/mascot.png"
+                  alt="Trustact"
+                  sizeClassName="h-64 w-64 md:h-72 md:w-72"
+                  idle
+                  priority
                 />
               </div>
             </div>

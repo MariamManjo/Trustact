@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, type MouseEvent } from 'react'
-import Image from 'next/image'
-import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
+import { useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
+import { TiltCharacter } from './tilt-character'
 
 interface Step {
   eyebrow: string
@@ -32,56 +32,6 @@ const STEPS: Step[] = [
     image: '/onboarding/celebrate-v2.png',
   },
 ]
-
-/** Character art tilts/lifts toward the cursor instead of sitting static. */
-function TiltCharacter({ src, alt }: { src: string; alt: string }) {
-  const x = useMotionValue(0)
-  const y = useMotionValue(0)
-  const spring = { stiffness: 150, damping: 15, mass: 0.5 }
-  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [14, -14]), spring)
-  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-14, 14]), spring)
-  const translateX = useSpring(useTransform(x, [-0.5, 0.5], [-12, 12]), spring)
-  const translateY = useSpring(useTransform(y, [-0.5, 0.5], [-12, 12]), spring)
-
-  function handleMouseMove(e: MouseEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect()
-    x.set((e.clientX - rect.left) / rect.width - 0.5)
-    y.set((e.clientY - rect.top) / rect.height - 0.5)
-  }
-
-  function handleMouseLeave() {
-    x.set(0)
-    y.set(0)
-  }
-
-  return (
-    <div
-      className="relative flex h-64 w-64 shrink-0 items-center justify-center md:h-[380px] md:w-[380px]"
-      style={{ perspective: 800 }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
-      <motion.div
-        className="absolute h-56 w-56 rounded-full bg-violet-500/25 blur-3xl md:h-72 md:w-72"
-        animate={{ scale: [1, 1.15, 1], opacity: [0.35, 0.55, 0.35] }}
-        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.div
-        className="relative h-full w-full"
-        style={{ rotateX, rotateY, x: translateX, y: translateY, transformStyle: 'preserve-3d' }}
-      >
-        <Image
-          src={src}
-          alt={alt}
-          fill
-          sizes="(min-width: 768px) 380px, 256px"
-          className="object-contain drop-shadow-[0_25px_45px_rgba(139,92,246,0.35)]"
-          priority
-        />
-      </motion.div>
-    </div>
-  )
-}
 
 export function OnboardingIntro({ onComplete }: { onComplete: () => void }) {
   const [index, setIndex] = useState(0)
@@ -115,7 +65,7 @@ export function OnboardingIntro({ onComplete }: { onComplete: () => void }) {
             </div>
             <span className="text-xl font-extrabold tracking-tight">
               <span className="text-white">Trust</span>
-              <span className="text-violet-400">Saur</span>
+              <span className="text-violet-400">act</span>
             </span>
           </div>
           <div className="flex items-center gap-3 text-sm font-medium">
@@ -147,7 +97,7 @@ export function OnboardingIntro({ onComplete }: { onComplete: () => void }) {
                 <p className="mx-auto max-w-md text-base text-muted-foreground md:mx-0 md:text-lg">{step.body}</p>
               </div>
 
-              <TiltCharacter src={step.image} alt="" />
+              <TiltCharacter src={step.image} alt="" sizeClassName="h-64 w-64 md:h-[380px] md:w-[380px]" idle priority />
             </motion.div>
           </AnimatePresence>
         </div>

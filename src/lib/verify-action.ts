@@ -10,7 +10,7 @@ export interface VerifyAssessment {
   verificationQuestion: string
 }
 
-const SYSTEM_PROMPT = `You are TrustSaur, a verification co-pilot for autonomous AI agents
+const SYSTEM_PROMPT = `You are Trustact, a verification co-pilot for autonomous AI agents
 (shopping agents, booking agents, concierge agents) that are about to spend real money
 on someone's behalf.
 
