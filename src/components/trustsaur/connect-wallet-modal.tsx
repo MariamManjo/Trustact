@@ -82,6 +82,11 @@ function firstWord(name: string): string {
   return name.toLowerCase().split(' ')[0]
 }
 
+function isLikelyUserRejection(message: string): boolean {
+  const m = message.toLowerCase()
+  return m.includes('reject') || m.includes('declin') || m.includes('cancel') || m.includes('denied')
+}
+
 function WalletIcon({ entry }: { entry: WalletEntry }) {
   if (entry.icon) {
     // eslint-disable-next-line @next/next/no-img-element -- wallet adapter icons are data: URIs
@@ -114,6 +119,7 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
   const [connectingLabel, setConnectingLabel] = useState<{ name: string; icon: string | null } | null>(null)
   const [inlineError, setInlineError] = useState<string | null>(null)
   const connectAttemptRef = useRef<WalletName | null>(null)
+  const retriedRef = useRef(false)
 
   // Derived, not stored — 'connecting' is just "we've picked a wallet and
   // are waiting on it", so there's nothing to desync.
@@ -195,25 +201,46 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
       setInlineError('Connection timed out — try again.')
     }, 25000)
 
+    const succeed = () => {
+      if (cancelled) return
+      clearTimeout(timeoutId)
+      setPendingWalletName(null)
+      onOpenChange(false)
+      // Fire-and-forget per WALLET_UX_SPEC.md §2: if they decline the
+      // signature, they stay connected but unauthenticated — never
+      // block or reopen anything over a declined sign-in.
+      signIn.mutate()
+    }
+
+    const fail = (err: unknown) => {
+      if (cancelled) return
+      clearTimeout(timeoutId)
+      setPendingWalletName(null)
+      // Surfaces the adapter's real rejection reason (e.g. "User
+      // rejected the request") instead of a fixed generic string, so a
+      // genuine bug is distinguishable from an actual user cancellation.
+      setInlineError(err instanceof Error && err.message ? err.message : 'Connection cancelled — try again.')
+    }
+
     connect()
-      .then(() => {
+      .then(succeed)
+      .catch(async (err: unknown) => {
         if (cancelled) return
-        clearTimeout(timeoutId)
-        setPendingWalletName(null)
-        onOpenChange(false)
-        // Fire-and-forget per WALLET_UX_SPEC.md §2: if they decline the
-        // signature, they stay connected but unauthenticated — never
-        // block or reopen anything over a declined sign-in.
-        signIn.mutate()
-      })
-      .catch((err: unknown) => {
+        const message = err instanceof Error && err.message ? err.message : ''
+        // Some wallet extensions (observed with Phantom) occasionally throw
+        // a generic, transient error on the very first connect() call after
+        // page load — timing-dependent, not a user action (it disappears
+        // with DevTools open, which slows JS execution enough to dodge the
+        // race). One silent retry clears it in practice. Never retried for
+        // anything that reads like an actual user rejection.
+        if (retriedRef.current || !message || isLikelyUserRejection(message)) {
+          fail(err)
+          return
+        }
+        retriedRef.current = true
+        await new Promise((resolve) => setTimeout(resolve, 500))
         if (cancelled) return
-        clearTimeout(timeoutId)
-        setPendingWalletName(null)
-        // Surfaces the adapter's real rejection reason (e.g. "User
-        // rejected the request") instead of a fixed generic string, so a
-        // genuine bug is distinguishable from an actual user cancellation.
-        setInlineError(err instanceof Error && err.message ? err.message : 'Connection cancelled — try again.')
+        connect().then(succeed).catch(fail)
       })
 
     return () => {
@@ -235,6 +262,7 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
     }
     setInlineError(null)
     connectAttemptRef.current = null
+    retriedRef.current = false
     setConnectingLabel({ name: entry.name, icon: entry.icon })
     setPendingWalletName(entry.adapterName)
     select(entry.adapterName)
@@ -242,6 +270,7 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
 
   function handleCancelConnecting() {
     connectAttemptRef.current = null
+    retriedRef.current = false
     setPendingWalletName(null)
   }
 
