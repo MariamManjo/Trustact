@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { TiltCharacter } from './tilt-character'
+import { BrandMark } from './brand-mark'
 
 interface Step {
   eyebrow: string
@@ -59,15 +60,7 @@ export function OnboardingIntro({ onComplete }: { onComplete: () => void }) {
     >
       <div className="mx-auto flex min-h-[80vh] max-w-5xl flex-col justify-between px-6 py-8 md:px-12 md:py-10">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-black text-white">
-              T
-            </div>
-            <span className="text-xl font-extrabold tracking-tight">
-              <span className="text-white">Trust</span>
-              <span className="text-violet-400">act</span>
-            </span>
-          </div>
+          <BrandMark iconClassName="h-8 w-8" wordmarkClassName="h-5" />
           <div className="flex items-center gap-3 text-sm font-medium">
             <span className="text-muted-foreground">
               Step {index + 1} of {STEPS.length}

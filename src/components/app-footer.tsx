@@ -15,7 +15,7 @@ export function AppFooter() {
       <div className="mx-auto max-w-6xl px-6 py-10">
         <div className="flex flex-col gap-8 md:flex-row md:justify-between">
           <div className="max-w-xs space-y-3">
-            <BrandMark iconClassName="h-7 w-7" wordmarkClassName="text-base" />
+            <BrandMark iconClassName="h-7 w-7" wordmarkClassName="h-4" />
             <p className="text-sm leading-relaxed text-neutral-500">
               A confidence check for autonomous AI agents — verified by real humans, paid automatically on Solana.
             </p>

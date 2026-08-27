@@ -25,7 +25,7 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div className="flex items-center gap-6">
             <Link className="transition-opacity hover:opacity-80" href="/">
-              <BrandMark iconClassName="h-8 w-8" wordmarkClassName="text-lg" />
+              <BrandMark iconClassName="h-8 w-8" wordmarkClassName="h-5" />
             </Link>
             <div className="hidden md:flex items-center">
               <ul className="flex flex-nowrap items-center gap-1">
