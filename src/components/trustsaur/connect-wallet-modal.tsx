@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletReadyState, type WalletName } from '@solana/wallet-adapter-base'
-import { ArrowLeft, ChevronRight, Search, X } from 'lucide-react'
+import { ArrowLeft, Backpack, ChevronRight, Search, X } from 'lucide-react'
 import { useSignIn } from './auth-session-data-access'
 
 type Step = 'list' | 'connecting'
@@ -69,6 +69,17 @@ function WalletIcon({ entry }: { entry: WalletEntry }) {
     // eslint-disable-next-line @next/next/no-img-element -- wallet adapter icons are data: URIs
     return <img src={entry.icon} alt="" className="h-8 w-8 shrink-0 rounded-full" />
   }
+  // Backpack has no legacy wallet-adapter package (it's Wallet Standard-only,
+  // so there's nothing to pull a bundled icon from until it's actually
+  // installed and injects itself) — a real vector icon reads much better
+  // than a plain letter-in-a-circle for the not-installed state.
+  if (entry.name === 'Backpack') {
+    return (
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-red-400">
+        <Backpack className="h-4.5 w-4.5" />
+      </div>
+    )
+  }
   return (
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-muted-foreground">
       {entry.name.charAt(0)}
@@ -84,6 +95,7 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
   const [pendingWalletName, setPendingWalletName] = useState<WalletName | null>(null)
   const [connectingLabel, setConnectingLabel] = useState<{ name: string; icon: string | null } | null>(null)
   const [inlineError, setInlineError] = useState<string | null>(null)
+  const connectAttemptRef = useRef<WalletName | null>(null)
 
   // Derived, not stored — 'connecting' is just "we've picked a wallet and
   // are waiting on it", so there's nothing to desync.
@@ -150,10 +162,18 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
   }, [entries, search])
 
   // Drives the actual connect() call once `select()` has propagated the
-  // chosen adapter into wallet-adapter-react's own state.
+  // chosen adapter into wallet-adapter-react's own state. Guarded by a ref
+  // (not just the pendingWalletName/wallet deps) because `wallet` from
+  // useWallet() can change reference more than once while a single
+  // selection is settling, which would otherwise re-run this effect and
+  // call connect() a second time on an adapter still mid-connect — most
+  // adapters reject a concurrent connect() call, which looked identical to
+  // the user actually cancelling.
   useEffect(() => {
     if (!pendingWalletName) return
     if (wallet?.adapter.name !== pendingWalletName) return
+    if (connectAttemptRef.current === pendingWalletName) return
+    connectAttemptRef.current = pendingWalletName
 
     let cancelled = false
 
@@ -175,11 +195,14 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
         // block or reopen anything over a declined sign-in.
         signIn.mutate()
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (cancelled) return
         clearTimeout(timeoutId)
         setPendingWalletName(null)
-        setInlineError('Connection cancelled — try again.')
+        // Surfaces the adapter's real rejection reason (e.g. "User
+        // rejected the request") instead of a fixed generic string, so a
+        // genuine bug is distinguishable from an actual user cancellation.
+        setInlineError(err instanceof Error && err.message ? err.message : 'Connection cancelled — try again.')
       })
 
     return () => {
@@ -200,12 +223,14 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
       return
     }
     setInlineError(null)
+    connectAttemptRef.current = null
     setConnectingLabel({ name: entry.name, icon: entry.icon })
     setPendingWalletName(entry.adapterName)
     select(entry.adapterName)
   }
 
   function handleCancelConnecting() {
+    connectAttemptRef.current = null
     setPendingWalletName(null)
   }
 

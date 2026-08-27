@@ -63,7 +63,8 @@ export function ClusterChecker({ children }: { children: ReactNode }) {
 export function NetworkBadge() {
   const { cluster } = useCluster()
   return (
-    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-neutral-400">
+    <span className="flex items-center gap-1.5 text-xs text-neutral-500">
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
       {cluster.name}
     </span>
   )
