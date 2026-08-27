@@ -6,6 +6,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletReadyState, type WalletName } from '@solana/wallet-adapter-base'
 import { ArrowLeft, Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useSignIn } from './auth-session-data-access'
 
 type Step = 'list' | 'connecting'
 
@@ -78,6 +79,7 @@ function WalletIcon({ entry }: { entry: WalletEntry }) {
 
 export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { wallets, wallet, select, connect } = useWallet()
+  const signIn = useSignIn()
 
   const [search, setSearch] = useState('')
   const [pendingWalletName, setPendingWalletName] = useState<WalletName | null>(null)
@@ -162,6 +164,10 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
         clearTimeout(timeoutId)
         setPendingWalletName(null)
         onOpenChange(false)
+        // Fire-and-forget per WALLET_UX_SPEC.md §2: if they decline the
+        // signature, they stay connected but unauthenticated — never
+        // block or reopen anything over a declined sign-in.
+        signIn.mutate()
       })
       .catch(() => {
         if (cancelled) return
@@ -174,7 +180,7 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
       cancelled = true
       clearTimeout(timeoutId)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- connect() identity changes with `wallet`, which we're already keying on
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- connect()/signIn identity changes with `wallet`, which we're already keying on
   }, [wallet, pendingWalletName])
 
   function handleSelectEntry(entry: WalletEntry) {

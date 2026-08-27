@@ -58,7 +58,8 @@
     "resend": "^6.24.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
-    "tw-animate-css": "^1.3.8"
+    "tw-animate-css": "^1.3.8",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

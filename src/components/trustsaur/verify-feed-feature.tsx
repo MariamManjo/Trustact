@@ -3,18 +3,42 @@
 import { useState, type FormEvent } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { LAMPORTS_PER_SOL } from '@solana/web3.js'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Bell, Camera, CheckCircle2, MapPin, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { Bell, Camera, CheckCircle2, MapPin, ThumbsDown, ThumbsUp, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ConnectWalletModal } from './connect-wallet-modal'
 import { CameraCapture } from './camera-capture'
+import { useAuthSession, useSignIn } from './auth-session-data-access'
 import { useOpenRounds, useReputation, useSubmitAnswer, type OpenRoundSummary } from './rounds-data-access'
 
+/**
+ * Wallet-gated, not an anonymous email box — the account IS the signed-in
+ * wallet (Sign-In With Solana), and the notification preference is tied to
+ * it. Anyone could type any email into an open form; a verified signature
+ * can't be spoofed by someone else.
+ */
 function NotifySignup() {
+  const { connected } = useWallet()
+  const { data: session, isLoading: sessionLoading } = useAuthSession()
+  const signIn = useSignIn()
+  const queryClient = useQueryClient()
+  const [connectOpen, setConnectOpen] = useState(false)
   const [email, setEmail] = useState('')
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle')
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle')
   const [error, setError] = useState<string | null>(null)
+
+  const wallet = session?.wallet ?? null
+
+  const { data: current } = useQuery({
+    queryKey: ['notify-email', wallet],
+    queryFn: async (): Promise<{ email: string | null }> => {
+      const res = await fetch('/api/notify-signup')
+      return res.json()
+    },
+    enabled: Boolean(wallet),
+  })
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -28,19 +52,74 @@ function NotifySignup() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Something went wrong.')
-      setStatus('done')
+      setStatus('idle')
+      queryClient.invalidateQueries({ queryKey: ['notify-email', wallet] })
     } catch (err) {
       setStatus('error')
       setError(err instanceof Error ? err.message : 'Something went wrong.')
     }
   }
 
-  if (status === 'done') {
+  async function turnOff() {
+    await fetch('/api/notify-signup', { method: 'DELETE' })
+    setEmail('')
+    queryClient.invalidateQueries({ queryKey: ['notify-email', wallet] })
+  }
+
+  // Wallet connected but hasn't signed the Sign-In With Solana message yet.
+  if (connected && !sessionLoading && !wallet) {
     return (
       <Card className="py-4">
-        <CardContent className="flex items-center gap-2 text-sm font-medium text-violet-500">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          You&apos;re in — we&apos;ll email {email} when a new question opens.
+        <CardContent className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">Sign in with your wallet to turn on notifications.</p>
+          <Button
+            size="sm"
+            disabled={signIn.isPending}
+            onClick={() => signIn.mutate()}
+            className="h-9 shrink-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-xs font-medium text-white hover:from-violet-400 hover:to-fuchsia-400"
+          >
+            {signIn.isPending ? 'Check your wallet…' : 'Sign in'}
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!connected) {
+    return (
+      <Card className="py-4">
+        <CardContent className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">Connect your wallet to get notified about new questions.</p>
+          <Button
+            size="sm"
+            onClick={() => setConnectOpen(true)}
+            className="h-9 shrink-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-xs font-medium text-white hover:from-violet-400 hover:to-fuchsia-400"
+          >
+            Connect wallet
+          </Button>
+          <ConnectWalletModal open={connectOpen} onOpenChange={setConnectOpen} />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (current?.email) {
+    return (
+      <Card className="py-4">
+        <CardContent className="flex items-center justify-between gap-2 text-sm">
+          <span className="flex items-center gap-2 font-medium text-violet-500">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            Notifying {current.email}
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={turnOff}
+            className="h-8 gap-1 text-xs text-muted-foreground hover:bg-white/10 hover:text-foreground"
+          >
+            <X className="h-3 w-3" />
+            Turn off
+          </Button>
         </CardContent>
       </Card>
     )
