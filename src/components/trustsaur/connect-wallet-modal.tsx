@@ -4,8 +4,26 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletReadyState, type WalletName } from '@solana/wallet-adapter-base'
+import {
+  CoinbaseWalletAdapter,
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+  TrustWalletAdapter,
+} from '@solana/wallet-adapter-wallets'
 import { ArrowLeft, Backpack, ChevronRight, Search, X } from 'lucide-react'
 import { useSignIn } from './auth-session-data-access'
+
+// Icon source only — these instances are never passed to WalletProvider, so
+// they can't affect the actual connect flow. They exist purely to read the
+// bundled logo each package carries, for the not-yet-installed state where
+// Wallet Standard has nothing to offer (a wallet only has an icon to give
+// once it actually injects itself).
+const FALLBACK_ICONS: Record<string, string | null> = {
+  Phantom: new PhantomWalletAdapter().icon,
+  Solflare: new SolflareWalletAdapter().icon,
+  'Coinbase Wallet': new CoinbaseWalletAdapter().icon,
+  Trust: new TrustWalletAdapter().icon,
+}
 
 type Step = 'list' | 'connecting'
 
@@ -115,23 +133,16 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
 
   const entries: WalletEntry[] = useMemo(() => {
     const detected = wallets.filter((w) => w.readyState === WalletReadyState.Installed)
-    const findIn = (list: typeof wallets, name: string) =>
-      list.find((w) => w.adapter.name.toLowerCase() === name.toLowerCase()) ??
-      list.find((w) => w.adapter.name.toLowerCase().includes(firstWord(name)))
-    const findDetected = (name: string) => findIn(detected, name)
-    // Falls back to the full list (installed or not) purely for the icon —
-    // a few wallets are registered explicitly (see solana-provider.tsx)
-    // specifically so their real logo is available even when not installed,
-    // instead of the plain letter-avatar fallback.
-    const findAny = (name: string) => findIn(wallets, name)
+    const findDetected = (name: string) =>
+      detected.find((w) => w.adapter.name.toLowerCase() === name.toLowerCase()) ??
+      detected.find((w) => w.adapter.name.toLowerCase().includes(firstWord(name)))
 
     const curated: WalletEntry[] = CURATED_WALLETS.map((curated) => {
       const match = findDetected(curated.name)
-      const iconMatch = match ?? findAny(curated.name)
       return {
         name: curated.name,
         adapterName: match?.adapter.name ?? null,
-        icon: iconMatch?.adapter.icon ?? null,
+        icon: match?.adapter.icon ?? FALLBACK_ICONS[curated.name] ?? null,
         installUrl: curated.installUrl,
         installed: Boolean(match),
         label: match ? 'Detected' : curated.popular ? 'Popular' : null,

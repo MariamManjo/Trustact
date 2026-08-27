@@ -2,12 +2,6 @@
 
 import { WalletError } from '@solana/wallet-adapter-base'
 import { AnchorWallet, ConnectionProvider, useConnection, useWallet, WalletProvider } from '@solana/wallet-adapter-react'
-import {
-  CoinbaseWalletAdapter,
-  PhantomWalletAdapter,
-  SolflareWalletAdapter,
-  TrustWalletAdapter,
-} from '@solana/wallet-adapter-wallets'
 import { ReactNode, useCallback, useMemo } from 'react'
 import { useCluster } from '../cluster/cluster-data-access'
 import { AnchorProvider } from '@anchor-lang/core'
@@ -15,6 +9,17 @@ import { AnchorProvider } from '@anchor-lang/core'
 // No WalletModalProvider here — this app uses its own ConnectWalletModal
 // (src/components/trustsaur/connect-wallet-modal.tsx) everywhere instead of
 // wallet-adapter-react-ui's default (unstyled) modal/button.
+//
+// wallets={[]}: real detection is Wallet Standard-only, deliberately. An
+// earlier version also registered a few legacy adapter instances (Phantom,
+// Solflare, ...) here purely so their bundled icon was available before the
+// wallet actually injects itself. wallet-adapter-react does dedupe a legacy
+// adapter against a same-named Standard one, but it's still a second live
+// adapter instance — with its own connect() implementation — sitting in the
+// mix for however long that dedup takes to settle after mount. Not worth it
+// just for an icon; ConnectWalletModal now sources fallback icons from
+// adapter instances that are never registered with WalletProvider at all,
+// so there's zero chance of them touching the actual connect flow.
 export function SolanaProvider({ children }: { children: ReactNode }) {
   const { cluster } = useCluster()
   const endpoint = useMemo(() => cluster.endpoint, [cluster])
@@ -22,21 +27,9 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
     console.error(error)
   }, [])
 
-  // These carry a bundled real logo (data URI) regardless of whether the
-  // wallet is actually installed — Wallet Standard auto-detection (which
-  // still handles the actual connect for an installed wallet, and covers
-  // anything not listed here, e.g. Backpack) only has an icon to offer
-  // once a wallet injects itself, which not-installed wallets never do.
-  // Without these, ConnectWalletModal fell back to a plain letter avatar
-  // for every not-installed entry.
-  const wallets = useMemo(
-    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter(), new CoinbaseWalletAdapter(), new TrustWalletAdapter()],
-    []
-  )
-
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} onError={onError} autoConnect={false}>
+      <WalletProvider wallets={[]} onError={onError} autoConnect={false}>
         {children}
       </WalletProvider>
     </ConnectionProvider>
