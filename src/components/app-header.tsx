@@ -17,73 +17,79 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
   }
 
   return (
-    <header
-      className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0710]/80 px-4 py-2.5 text-neutral-300 backdrop-blur-md [-webkit-backdrop-filter:blur(12px)]"
-      style={{ transform: 'translateZ(0)', WebkitTransform: 'translateZ(0)' }}
-    >
-      <div className="mx-auto flex max-w-6xl items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link className="transition-opacity hover:opacity-80" href="/">
-            <BrandMark iconClassName="h-8 w-8" wordmarkClassName="text-lg" />
-          </Link>
-          <div className="hidden md:flex items-center">
-            <ul className="flex flex-nowrap items-center gap-1">
-              {links.map(({ label, path }) => (
-                <li key={path}>
-                  <Link
-                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                      isActive(path) ? 'bg-white/10 text-white' : 'text-neutral-400 hover:text-white'
-                    }`}
-                    href={path}
-                  >
-                    {label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-neutral-300 hover:bg-white/10 hover:text-white md:hidden"
-          onClick={() => setShowMenu(!showMenu)}
-        >
-          {showMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </Button>
-
-        <div className="hidden items-center gap-2 md:flex">
-          <HeaderWalletPill />
-          <ClusterUiSelect />
-        </div>
-
-        {showMenu && (
-          <div className="fixed inset-x-0 top-[57px] bottom-0 z-40 bg-[#0a0710]/95 backdrop-blur-sm md:hidden">
-            <div className="flex flex-col gap-4 border-t border-white/10 p-4">
-              <ul className="flex flex-col gap-1">
+    <>
+      <header
+        className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0710]/80 px-4 py-2.5 text-neutral-300 backdrop-blur-md [-webkit-backdrop-filter:blur(12px)]"
+        style={{ transform: 'translateZ(0)', WebkitTransform: 'translateZ(0)' }}
+      >
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
+          <div className="flex items-center gap-6">
+            <Link className="transition-opacity hover:opacity-80" href="/">
+              <BrandMark iconClassName="h-8 w-8" wordmarkClassName="text-lg" />
+            </Link>
+            <div className="hidden md:flex items-center">
+              <ul className="flex flex-nowrap items-center gap-1">
                 {links.map(({ label, path }) => (
                   <li key={path}>
                     <Link
-                      className={`block rounded-lg px-3 py-2.5 text-lg font-medium ${
+                      className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                         isActive(path) ? 'bg-white/10 text-white' : 'text-neutral-400 hover:text-white'
                       }`}
                       href={path}
-                      onClick={() => setShowMenu(false)}
                     >
                       {label}
                     </Link>
                   </li>
                 ))}
               </ul>
-              <div className="flex flex-col gap-3">
-                <HeaderWalletPill />
-                <ClusterUiSelect />
-              </div>
             </div>
           </div>
-        )}
-      </div>
-    </header>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-neutral-300 hover:bg-white/10 hover:text-white md:hidden"
+            onClick={() => setShowMenu(!showMenu)}
+          >
+            {showMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </Button>
+
+          <div className="hidden items-center gap-2 md:flex">
+            <HeaderWalletPill />
+            <ClusterUiSelect />
+          </div>
+        </div>
+      </header>
+
+      {/* Rendered as a sibling of <header>, not a child — a fixed-position
+          descendant of an element with transform/backdrop-filter is
+          positioned relative to that ancestor instead of the viewport,
+          which squashed this into the header's own tiny bounding box. */}
+      {showMenu && (
+        <div className="fixed inset-x-0 top-[57px] bottom-0 z-40 bg-[#0a0710]/95 backdrop-blur-sm md:hidden">
+          <div className="flex flex-col gap-4 border-t border-white/10 p-4">
+            <ul className="flex flex-col gap-1">
+              {links.map(({ label, path }) => (
+                <li key={path}>
+                  <Link
+                    className={`block rounded-lg px-3 py-2.5 text-lg font-medium ${
+                      isActive(path) ? 'bg-white/10 text-white' : 'text-neutral-400 hover:text-white'
+                    }`}
+                    href={path}
+                    onClick={() => setShowMenu(false)}
+                  >
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-col gap-3">
+              <HeaderWalletPill />
+              <ClusterUiSelect />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

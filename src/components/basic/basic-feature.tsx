@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { ExplorerLink } from '../cluster/cluster-ui'
-import { WalletButton } from '../solana/solana-provider'
+import { ConnectWalletModal } from '../trustsaur/connect-wallet-modal'
+import { Button } from '@/components/ui/button'
 import { useBasicProgram } from './basic-data-access'
 import { BasicCreate, BasicProgram } from './basic-ui'
 import { AppHero } from '../app-hero'
@@ -11,6 +13,7 @@ import { ellipsify } from '@/lib/utils'
 export default function BasicFeature() {
   const { publicKey } = useWallet()
   const { programId } = useBasicProgram()
+  const [connectOpen, setConnectOpen] = useState(false)
 
   return publicKey ? (
     <div>
@@ -23,12 +26,14 @@ export default function BasicFeature() {
       <BasicProgram />
     </div>
   ) : (
-    <div className="max-w-4xl mx-auto">
-      <div className="hero py-[64px]">
-        <div className="hero-content text-center">
-          <WalletButton className="btn btn-primary" />
-        </div>
-      </div>
+    <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 py-16 text-center">
+      <Button
+        onClick={() => setConnectOpen(true)}
+        className="h-10 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-400 hover:to-fuchsia-400"
+      >
+        Connect wallet
+      </Button>
+      <ConnectWalletModal open={connectOpen} onOpenChange={setConnectOpen} />
     </div>
   )
 }

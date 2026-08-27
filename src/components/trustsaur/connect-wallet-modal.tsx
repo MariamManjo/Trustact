@@ -16,13 +16,45 @@ interface WalletEntry {
   installUrl: string
   installed: boolean
   label: 'Detected' | 'Popular' | null
+  mobileDeepLink?: () => string
+}
+
+/**
+ * Mobile browsers have no extension mechanism, so a wallet extension can
+ * never "inject" itself the way it does on desktop — there's nothing for
+ * wallet-adapter to detect, even with the app genuinely installed. These
+ * universal links open (or install-then-open) the wallet's own in-app
+ * browser pointed at this page, where the wallet *can* inject a provider.
+ */
+function mobileDeepLink(builder: (url: string, ref: string) => string): (() => string) | undefined {
+  if (typeof window === 'undefined') return undefined
+  return () => builder(encodeURIComponent(window.location.href), encodeURIComponent(window.location.origin))
+}
+
+function isMobileDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 }
 
 // Curated order per spec — detected wallets float to the top, but this base
 // order (and the install links for anything not detected) stays fixed.
-const CURATED_WALLETS: { name: string; installUrl: string; popular?: boolean }[] = [
-  { name: 'Phantom', installUrl: 'https://phantom.app/download', popular: true },
-  { name: 'Solflare', installUrl: 'https://solflare.com/download' },
+const CURATED_WALLETS: {
+  name: string
+  installUrl: string
+  popular?: boolean
+  mobileDeepLink?: () => string
+}[] = [
+  {
+    name: 'Phantom',
+    installUrl: 'https://phantom.app/download',
+    popular: true,
+    mobileDeepLink: mobileDeepLink((url, ref) => `https://phantom.app/ul/browse/${url}?ref=${ref}`),
+  },
+  {
+    name: 'Solflare',
+    installUrl: 'https://solflare.com/download',
+    mobileDeepLink: mobileDeepLink((url, ref) => `https://solflare.com/ul/v1/browse/${url}?ref=${ref}`),
+  },
   { name: 'Backpack', installUrl: 'https://backpack.app/downloads' },
   { name: 'Coinbase Wallet', installUrl: 'https://www.coinbase.com/wallet/downloads' },
   { name: 'Trust', installUrl: 'https://trustwallet.com/download' },
@@ -83,6 +115,7 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
         installUrl: curated.installUrl,
         installed: Boolean(match),
         label: match ? 'Detected' : curated.popular ? 'Popular' : null,
+        mobileDeepLink: curated.mobileDeepLink,
       }
     })
 
@@ -146,7 +179,12 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
 
   function handleSelectEntry(entry: WalletEntry) {
     if (!entry.installed || !entry.adapterName) {
-      window.open(entry.installUrl, '_blank', 'noopener,noreferrer')
+      // On mobile there's no extension to detect even when the app is
+      // installed — a universal link opens (or installs, then opens) the
+      // wallet's own in-app browser pointed back at this page instead of
+      // just sending them to a store listing.
+      const url = isMobileDevice() && entry.mobileDeepLink ? entry.mobileDeepLink() : entry.installUrl
+      window.open(url, '_blank', 'noopener,noreferrer')
       return
     }
     setInlineError(null)
@@ -227,7 +265,7 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
                         entry.installed ? 'text-violet-400' : 'text-muted-foreground'
                       )}
                     >
-                      {entry.installed ? entry.label : 'Install'}
+                      {entry.installed ? entry.label : entry.mobileDeepLink && isMobileDevice() ? 'Open' : 'Install'}
                     </span>
                   </button>
                 ))}

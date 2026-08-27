@@ -1,24 +1,14 @@
 'use client'
 
 import { WalletError } from '@solana/wallet-adapter-base'
-import {
-  AnchorWallet,
-  ConnectionProvider,
-  useConnection,
-  useWallet,
-  WalletProvider,
-} from '@solana/wallet-adapter-react'
-import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
-import dynamic from 'next/dynamic'
+import { AnchorWallet, ConnectionProvider, useConnection, useWallet, WalletProvider } from '@solana/wallet-adapter-react'
 import { ReactNode, useCallback, useMemo } from 'react'
 import { useCluster } from '../cluster/cluster-data-access'
-import '@solana/wallet-adapter-react-ui/styles.css'
 import { AnchorProvider } from '@anchor-lang/core'
 
-export const WalletButton = dynamic(async () => (await import('@solana/wallet-adapter-react-ui')).WalletMultiButton, {
-  ssr: false,
-})
-
+// No WalletModalProvider here — this app uses its own ConnectWalletModal
+// (src/components/trustsaur/connect-wallet-modal.tsx) everywhere instead of
+// wallet-adapter-react-ui's default (unstyled) modal/button.
 export function SolanaProvider({ children }: { children: ReactNode }) {
   const { cluster } = useCluster()
   const endpoint = useMemo(() => cluster.endpoint, [cluster])
@@ -29,7 +19,7 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={[]} onError={onError} autoConnect={false}>
-        <WalletModalProvider>{children}</WalletModalProvider>
+        {children}
       </WalletProvider>
     </ConnectionProvider>
   )
