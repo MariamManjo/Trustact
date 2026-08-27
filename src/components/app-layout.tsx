@@ -7,6 +7,7 @@ import React from 'react'
 import { AppFooter } from '@/components/app-footer'
 import { ClusterChecker } from '@/components/cluster/cluster-ui'
 import { AccountChecker } from '@/components/account/account-ui'
+import { ScrollToTopButton } from '@/components/scroll-to-top-button'
 
 export function AppLayout({
   children,
@@ -27,6 +28,7 @@ export function AppLayout({
         </main>
         <AppFooter />
       </div>
+      <ScrollToTopButton />
       <Toaster />
     </ThemeProvider>
   )

@@ -1,9 +1,8 @@
 'use client'
 
-import { Fragment, useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 
 type Expression = 'happy' | 'squinting' | 'eyes-right' | 'eyes-left' | 'surprised' | 'winking' | 'angry'
@@ -31,32 +30,8 @@ export function HeroCharacter() {
   const [idleIndex, setIdleIndex] = useState(0)
   const [lookDirection, setLookDirection] = useState<'left' | 'right' | null>(null)
   const [reaction, setReaction] = useState<Expression | null>(null)
-  const [isDocked, setIsDocked] = useState(false)
   const clickTimesRef = useRef<number[]>([])
   const reactionTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([])
-  const heroRef = useRef<HTMLDivElement>(null)
-
-  // Docks into a small floating bubble once the in-flow hero has scrolled
-  // out of view under the header, so the character is never lost — it just
-  // never leaves the viewport instead of staying literally full-size fixed
-  // (which would sit on top of the form underneath it).
-  useEffect(() => {
-    let ticking = false
-    function checkDocked() {
-      ticking = false
-      const rect = heroRef.current?.getBoundingClientRect()
-      if (!rect) return
-      setIsDocked(rect.bottom < 72)
-    }
-    function handleScroll() {
-      if (ticking) return
-      ticking = true
-      requestAnimationFrame(checkDocked)
-    }
-    checkDocked()
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
 
   useEffect(() => {
     if (reduceMotion) return
@@ -106,46 +81,8 @@ export function HeroCharacter() {
   const mirrored = expression === 'eyes-left'
   const src = EXPRESSION_SRC[mirrored ? 'eyes-right' : expression]
 
-  const dockedBubble = (
-    <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 -translate-x-1/2">
-      <AnimatePresence>
-        {isDocked && (
-          <motion.button
-            type="button"
-            aria-label="Trustact mascot"
-            onClick={handleClick}
-            initial={{ opacity: 0, scale: 0.6, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.6, y: 20 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="pointer-events-auto flex h-16 w-16 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-[#0a0710]/90 shadow-[0_8px_30px_rgba(139,92,246,0.45)] backdrop-blur-xl sm:h-20 sm:w-20"
-          >
-            <motion.div
-              key={expression}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="relative h-full w-full"
-            >
-              <Image
-                src={src}
-                alt=""
-                fill
-                sizes="80px"
-                className="object-contain object-bottom p-1.5"
-                style={mirrored ? { transform: 'scaleX(-1)' } : undefined}
-              />
-            </motion.div>
-          </motion.button>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-
   return (
-    <Fragment>
     <motion.div
-      ref={heroRef}
       initial={reduceMotion ? undefined : { opacity: 0, y: 60 }}
       animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
       transition={{ duration: 0.7, ease: 'easeOut' }}
@@ -189,7 +126,5 @@ export function HeroCharacter() {
         <ChevronDown className="h-6 w-6" />
       </motion.button>
     </motion.div>
-    {typeof document !== 'undefined' && createPortal(dockedBubble, document.body)}
-    </Fragment>
   )
 }
