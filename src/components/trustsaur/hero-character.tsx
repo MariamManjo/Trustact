@@ -107,37 +107,39 @@ export function HeroCharacter() {
   const src = EXPRESSION_SRC[mirrored ? 'eyes-right' : expression]
 
   const dockedBubble = (
-    <AnimatePresence>
-      {isDocked && (
-        <motion.button
-          type="button"
-          aria-label="Trustact mascot"
-          onClick={handleClick}
-          initial={{ opacity: 0, scale: 0.6, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.6, y: 20 }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="fixed right-4 bottom-4 z-50 flex h-16 w-16 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-[#0a0710]/90 shadow-[0_8px_30px_rgba(139,92,246,0.45)] backdrop-blur-xl sm:h-20 sm:w-20"
-        >
-          <motion.div
-            key={expression}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="relative h-full w-full"
+    <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 -translate-x-1/2">
+      <AnimatePresence>
+        {isDocked && (
+          <motion.button
+            type="button"
+            aria-label="Trustact mascot"
+            onClick={handleClick}
+            initial={{ opacity: 0, scale: 0.6, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.6, y: 20 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="pointer-events-auto flex h-16 w-16 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-[#0a0710]/90 shadow-[0_8px_30px_rgba(139,92,246,0.45)] backdrop-blur-xl sm:h-20 sm:w-20"
           >
-            <Image
-              src={src}
-              alt=""
-              fill
-              sizes="80px"
-              className="object-contain object-bottom p-1.5"
-              style={mirrored ? { transform: 'scaleX(-1)' } : undefined}
-            />
-          </motion.div>
-        </motion.button>
-      )}
-    </AnimatePresence>
+            <motion.div
+              key={expression}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="relative h-full w-full"
+            >
+              <Image
+                src={src}
+                alt=""
+                fill
+                sizes="80px"
+                className="object-contain object-bottom p-1.5"
+                style={mirrored ? { transform: 'scaleX(-1)' } : undefined}
+              />
+            </motion.div>
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </div>
   )
 
   return (
