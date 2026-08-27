@@ -8,7 +8,7 @@ import { CheckCircle2, XCircle, Clock, AlertTriangle, ArrowUpRight } from 'lucid
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { RoundJudgeCards } from './round-judge-cards'
-import { TiltCharacter } from './tilt-character'
+import { HeroCharacter } from './hero-character'
 
 function Mascot({ className = 'h-11 w-11', bounce = false }: { className?: string; bounce?: boolean }) {
   return (
@@ -219,7 +219,7 @@ export function TrustactFeature() {
             className="overflow-hidden"
           >
             <div
-              className="relative overflow-hidden rounded-2xl py-2"
+              className="relative rounded-2xl py-2"
               style={{
                 backgroundImage:
                   'radial-gradient(ellipse 90% 70% at 50% 20%, rgba(139,92,246,0.16) 0%, rgba(0,0,0,0) 70%)',
@@ -245,15 +245,7 @@ export function TrustactFeature() {
                   paid automatically on Solana.
                 </p>
               </div>
-              <div className="flex justify-center pt-2 pb-2">
-                <TiltCharacter
-                  src="/mascot.png"
-                  alt="Trustact"
-                  sizeClassName="h-64 w-64 md:h-72 md:w-72"
-                  idle
-                  priority
-                />
-              </div>
+              <HeroCharacter />
             </div>
           </motion.div>
         )}
