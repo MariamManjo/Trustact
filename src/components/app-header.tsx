@@ -17,7 +17,10 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0710]/80 px-4 py-2.5 text-neutral-300 backdrop-blur-md">
+    <header
+      className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0710]/80 px-4 py-2.5 text-neutral-300 backdrop-blur-md [-webkit-backdrop-filter:blur(12px)]"
+      style={{ transform: 'translateZ(0)', WebkitTransform: 'translateZ(0)' }}
+    >
       <div className="mx-auto flex max-w-6xl items-center justify-between">
         <div className="flex items-center gap-6">
           <Link className="transition-opacity hover:opacity-80" href="/">

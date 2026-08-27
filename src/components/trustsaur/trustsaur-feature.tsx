@@ -235,7 +235,7 @@ export function TrustactFeature() {
                 />
               ))}
               <div className="relative z-10 px-6 pt-7 text-center">
-                <p className="text-[1.6rem] leading-tight font-semibold tracking-tight text-balance">
+                <p className="text-[1.6rem] leading-tight font-semibold tracking-tight text-balance text-white">
                   Before it spends your money,
                   <br />
                   it asks real humans first.
