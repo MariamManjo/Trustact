@@ -15,14 +15,6 @@ export function BrandMark({
 }: BrandMarkProps) {
   return (
     <span className="inline-flex items-center gap-2">
-      <Image
-        src="/mascot.png"
-        alt=""
-        width={40}
-        height={40}
-        className={`${iconClassName} shrink-0 object-contain drop-shadow-[0_4px_10px_rgba(139,92,246,0.45)]`}
-        priority
-      />
       {showWordmark && (
         <Image
           src="/brand-wordmark.png"
@@ -33,6 +25,14 @@ export function BrandMark({
           priority
         />
       )}
+      <Image
+        src="/mascot.png"
+        alt=""
+        width={40}
+        height={40}
+        className={`${iconClassName} shrink-0 object-contain drop-shadow-[0_4px_10px_rgba(139,92,246,0.45)]`}
+        priority
+      />
     </span>
   )
 }
