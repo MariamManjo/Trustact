@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { LAMPORTS_PER_SOL } from '@solana/web3.js'
+import { motion } from 'framer-motion'
 import { Bell, Camera, CheckCircle2, MapPin, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -288,7 +289,13 @@ export function VerifyFeedFeature() {
 
       <NotifySignup />
 
-      {isLoading && <p className="text-sm text-muted-foreground">Loading open questions…</p>}
+      {isLoading && (
+        <div className="space-y-3">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-32 animate-pulse rounded-xl border border-white/10 bg-white/5" />
+          ))}
+        </div>
+      )}
 
       {!isLoading && (!rounds || rounds.length === 0) && (
         <Card className="py-4">
@@ -299,8 +306,15 @@ export function VerifyFeedFeature() {
       )}
 
       <div className="space-y-3">
-        {rounds?.map((round) => (
-          <OpenRoundCard key={round.id} round={round} />
+        {rounds?.map((round, i) => (
+          <motion.div
+            key={round.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: i * 0.06, ease: 'easeOut' }}
+          >
+            <OpenRoundCard round={round} />
+          </motion.div>
         ))}
       </div>
     </div>
