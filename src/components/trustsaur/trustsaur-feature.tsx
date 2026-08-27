@@ -251,7 +251,7 @@ export function TrustactFeature() {
         )}
       </AnimatePresence>
 
-      <Card className="gap-3 py-4">
+      <Card id="agent-action-form" className={`gap-3 py-4 ${stage === 'idle' ? '-mt-8' : ''}`}>
         <CardContent className="space-y-3">
           <label className="text-sm font-medium text-foreground">What is the agent about to do?</label>
           <textarea

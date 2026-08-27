@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'framer-motion'
+import { ChevronDown } from 'lucide-react'
 
 type Expression = 'happy' | 'squinting' | 'eyes-right' | 'eyes-left' | 'surprised' | 'winking' | 'angry'
 
@@ -98,7 +99,7 @@ export function HeroCharacter() {
         initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="relative -bottom-10 h-full w-full max-w-[420px] sm:-bottom-14 md:-bottom-16"
+        className="relative h-full w-full max-w-[420px]"
       >
         <Image
           src={src}
@@ -110,6 +111,20 @@ export function HeroCharacter() {
           priority
         />
       </motion.div>
+
+      <motion.button
+        type="button"
+        aria-label="Scroll down"
+        onClick={(e) => {
+          e.stopPropagation()
+          document.getElementById('agent-action-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }}
+        className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 text-violet-300/70 transition-colors hover:text-violet-200"
+        animate={reduceMotion ? undefined : { y: [0, 6, 0] }}
+        transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <ChevronDown className="h-6 w-6" />
+      </motion.button>
     </motion.div>
   )
 }
