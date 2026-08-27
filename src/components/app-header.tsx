@@ -52,9 +52,7 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
 
         <div className="hidden items-center gap-2 md:flex">
           <HeaderWalletPill />
-          <div className="rounded-full border border-white/10 bg-white/5 p-1">
-            <ClusterUiSelect />
-          </div>
+          <ClusterUiSelect />
         </div>
 
         {showMenu && (

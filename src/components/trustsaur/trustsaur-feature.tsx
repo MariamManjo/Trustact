@@ -210,10 +210,6 @@ export function TrustactFeature() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 py-10">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold tracking-tight text-violet-500">Trustact</span>
-      </div>
-
       <AnimatePresence>
         {stage === 'idle' && (
           <motion.div
