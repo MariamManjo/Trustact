@@ -2,7 +2,7 @@
 
 import { useWallet } from '@solana/wallet-adapter-react'
 import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, ArrowDownLeft, ArrowUpRight, Coins, Copy, Check } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 
@@ -18,6 +18,7 @@ import {
 import { ellipsify } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { AppAlert } from '@/components/app-alert'
+import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AppModal } from '@/components/app-modal'
 import { Input } from '@/components/ui/input'
@@ -27,9 +28,16 @@ export function AccountBalance({ address }: { address: PublicKey }) {
   const query = useGetBalance({ address })
 
   return (
-    <h1 className="text-5xl font-bold cursor-pointer" onClick={() => query.refetch()}>
-      {query.data ? <BalanceSol balance={query.data} /> : '...'} SOL
-    </h1>
+    <button
+      onClick={() => query.refetch()}
+      className="group flex items-baseline gap-2 text-left"
+      aria-label="Refresh balance"
+    >
+      <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-5xl font-extrabold tracking-tight text-transparent transition-opacity group-hover:opacity-80">
+        {query.data !== undefined ? <BalanceSol balance={query.data} /> : '…'}
+      </span>
+      <span className="text-lg font-medium text-muted-foreground">SOL</span>
+    </button>
   )
 }
 
@@ -53,7 +61,11 @@ export function AccountBalanceCheck({ address }: { address: PublicKey }) {
     return (
       <AppAlert
         action={
-          <Button variant="outline" onClick={() => mutation.mutateAsync(1).catch((err) => console.log(err))}>
+          <Button
+            variant="outline"
+            className="border-white/10 hover:bg-white/10"
+            onClick={() => mutation.mutateAsync(1).catch((err) => console.log(err))}
+          >
             Request Airdrop
           </Button>
         }
@@ -68,12 +80,10 @@ export function AccountBalanceCheck({ address }: { address: PublicKey }) {
 export function AccountButtons({ address }: { address: PublicKey }) {
   const { cluster } = useCluster()
   return (
-    <div>
-      <div className="space-x-2">
-        {cluster.network?.includes('mainnet') ? null : <ModalAirdrop address={address} />}
-        <ModalSend address={address} />
-        <ModalReceive address={address} />
-      </div>
+    <div className="flex flex-wrap items-center justify-center gap-2">
+      {cluster.network?.includes('mainnet') ? null : <ModalAirdrop address={address} />}
+      <ModalSend address={address} />
+      <ModalReceive address={address} />
     </div>
   )
 }
@@ -88,84 +98,78 @@ export function AccountTokens({ address }: { address: PublicKey }) {
   }, [query.data, showAll])
 
   return (
-    <div className="space-y-2">
-      <div className="justify-between">
-        <div className="flex justify-between">
-          <h2 className="text-2xl font-bold">Token Accounts</h2>
-          <div className="space-x-2">
-            {query.isLoading ? (
-              <span className="loading loading-spinner"></span>
+    <Card className="py-4">
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-violet-500">
+            <Coins className="h-4 w-4" />
+            Token accounts
+          </h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:bg-white/10 hover:text-foreground"
+            disabled={query.isLoading}
+            onClick={async () => {
+              await query.refetch()
+              await client.invalidateQueries({ queryKey: ['getTokenAccountBalance'] })
+            }}
+          >
+            <RefreshCw className={`h-4 w-4 ${query.isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+        {query.isError && <p className="text-sm text-red-400">Error: {query.error?.message.toString()}</p>}
+        {query.isSuccess && (
+          <>
+            {query.data.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No token accounts found.</p>
             ) : (
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  await query.refetch()
-                  await client.invalidateQueries({
-                    queryKey: ['getTokenAccountBalance'],
-                  })
-                }}
-              >
-                <RefreshCw size={16} />
-              </Button>
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-white/10 hover:bg-transparent">
+                    <TableHead>Public key</TableHead>
+                    <TableHead>Mint</TableHead>
+                    <TableHead className="text-right">Balance</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items?.map(({ account, pubkey }) => (
+                    <TableRow key={pubkey.toString()} className="border-white/10 hover:bg-white/5">
+                      <TableCell className="font-mono text-xs">
+                        <ExplorerLink label={ellipsify(pubkey.toString())} path={`account/${pubkey.toString()}`} />
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        <ExplorerLink
+                          label={ellipsify(account.data.parsed.info.mint)}
+                          path={`account/${account.data.parsed.info.mint.toString()}`}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        {account.data.parsed.info.tokenAmount.uiAmount}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {(query.data?.length ?? 0) > 5 && (
+                    <TableRow className="border-white/10 hover:bg-transparent">
+                      <TableCell colSpan={3} className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-violet-400 hover:bg-white/10 hover:text-violet-300"
+                          onClick={() => setShowAll(!showAll)}
+                        >
+                          {showAll ? 'Show less' : 'Show all'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             )}
-          </div>
-        </div>
-      </div>
-      {query.isError && <pre className="alert alert-error">Error: {query.error?.message.toString()}</pre>}
-      {query.isSuccess && (
-        <div>
-          {query.data.length === 0 ? (
-            <div>No token accounts found.</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Public Key</TableHead>
-                  <TableHead>Mint</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items?.map(({ account, pubkey }) => (
-                  <TableRow key={pubkey.toString()}>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <span className="font-mono">
-                          <ExplorerLink label={ellipsify(pubkey.toString())} path={`account/${pubkey.toString()}`} />
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <span className="font-mono">
-                          <ExplorerLink
-                            label={ellipsify(account.data.parsed.info.mint)}
-                            path={`account/${account.data.parsed.info.mint.toString()}`}
-                          />
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="font-mono">{account.data.parsed.info.tokenAmount.uiAmount}</span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-
-                {(query.data?.length ?? 0) > 5 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center">
-                      <Button variant="outline" onClick={() => setShowAll(!showAll)}>
-                        {showAll ? 'Show Less' : 'Show All'}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </div>
-      )}
-    </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -179,70 +183,79 @@ export function AccountTransactions({ address }: { address: PublicKey }) {
   }, [query.data, showAll])
 
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between">
-        <h2 className="text-2xl font-bold">Transaction History</h2>
-        <div className="space-x-2">
-          {query.isLoading ? (
-            <span className="loading loading-spinner"></span>
-          ) : (
-            <Button variant="outline" onClick={() => query.refetch()}>
-              <RefreshCw size={16} />
-            </Button>
-          )}
+    <Card className="py-4">
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold tracking-tight text-violet-500">Transaction history</h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:bg-white/10 hover:text-foreground"
+            disabled={query.isLoading}
+            onClick={() => query.refetch()}
+          >
+            <RefreshCw className={`h-4 w-4 ${query.isLoading ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
-      </div>
-      {query.isError && <pre className="alert alert-error">Error: {query.error?.message.toString()}</pre>}
-      {query.isSuccess && (
-        <div>
-          {query.data.length === 0 ? (
-            <div>No transactions found.</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Signature</TableHead>
-                  <TableHead className="text-right">Slot</TableHead>
-                  <TableHead>Block Time</TableHead>
-                  <TableHead className="text-right">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items?.map((item) => (
-                  <TableRow key={item.signature}>
-                    <TableHead className="font-mono">
-                      <ExplorerLink path={`tx/${item.signature}`} label={ellipsify(item.signature, 8)} />
-                    </TableHead>
-                    <TableCell className="font-mono text-right">
-                      <ExplorerLink path={`block/${item.slot}`} label={item.slot.toString()} />
-                    </TableCell>
-                    <TableCell>{new Date((item.blockTime ?? 0) * 1000).toISOString()}</TableCell>
-                    <TableCell className="text-right">
-                      {item.err ? (
-                        <span className="text-red-500" title={item.err.toString()}>
-                          Failed
-                        </span>
-                      ) : (
-                        <span className="text-green-500">Success</span>
-                      )}
-                    </TableCell>
+        {query.isError && <p className="text-sm text-red-400">Error: {query.error?.message.toString()}</p>}
+        {query.isSuccess && (
+          <>
+            {query.data.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No transactions found.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-white/10 hover:bg-transparent">
+                    <TableHead>Signature</TableHead>
+                    <TableHead className="text-right">Slot</TableHead>
+                    <TableHead>Block time</TableHead>
+                    <TableHead className="text-right">Status</TableHead>
                   </TableRow>
-                ))}
-                {(query.data?.length ?? 0) > 5 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center">
-                      <Button variant="outline" onClick={() => setShowAll(!showAll)}>
-                        {showAll ? 'Show Less' : 'Show All'}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </div>
-      )}
-    </div>
+                </TableHeader>
+                <TableBody>
+                  {items?.map((item) => (
+                    <TableRow key={item.signature} className="border-white/10 hover:bg-white/5">
+                      <TableCell className="font-mono text-xs">
+                        <ExplorerLink path={`tx/${item.signature}`} label={ellipsify(item.signature, 8)} />
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        <ExplorerLink path={`block/${item.slot}`} label={item.slot.toString()} />
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {new Date((item.blockTime ?? 0) * 1000).toISOString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.err ? (
+                          <span className="text-xs font-medium text-red-400" title={item.err.toString()}>
+                            Failed
+                          </span>
+                        ) : (
+                          <span className="text-xs font-medium text-emerald-400">Success</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {(query.data?.length ?? 0) > 5 && (
+                    <TableRow className="border-white/10 hover:bg-transparent">
+                      <TableCell colSpan={4} className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-violet-400 hover:bg-white/10 hover:text-violet-300"
+                          onClick={() => setShowAll(!showAll)}
+                        >
+                          {showAll ? 'Show less' : 'Show all'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -251,10 +264,40 @@ function BalanceSol({ balance }: { balance: number }) {
 }
 
 function ModalReceive({ address }: { address: PublicKey }) {
+  const [copied, setCopied] = useState(false)
+  const fullAddress = address.toString()
+
+  async function copyAddress() {
+    await navigator.clipboard.writeText(fullAddress)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
   return (
-    <AppModal title="Receive">
-      <p>Receive assets by sending them to your public key:</p>
-      <code>{address.toString()}</code>
+    <AppModal
+      title="Receive"
+      trigger={
+        <Button
+          variant="outline"
+          className="h-10 gap-1.5 rounded-full border-white/10 bg-white/5 hover:bg-white/10"
+        >
+          <ArrowDownLeft className="h-4 w-4" />
+          Receive
+        </Button>
+      }
+    >
+      <p className="text-sm text-muted-foreground">Receive assets by sending them to your public key:</p>
+      <button
+        onClick={copyAddress}
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/20 p-3 text-left font-mono text-xs break-all transition-colors hover:border-violet-500/40"
+      >
+        <span>{fullAddress}</span>
+        {copied ? (
+          <Check className="h-4 w-4 shrink-0 text-violet-400" />
+        ) : (
+          <Copy className="h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+      </button>
     </AppModal>
   )
 }
@@ -266,8 +309,17 @@ function ModalAirdrop({ address }: { address: PublicKey }) {
   return (
     <AppModal
       title="Airdrop"
+      trigger={
+        <Button
+          variant="outline"
+          className="h-10 gap-1.5 rounded-full border-white/10 bg-white/5 hover:bg-white/10"
+        >
+          <Coins className="h-4 w-4" />
+          Airdrop
+        </Button>
+      }
       submitDisabled={!amount || mutation.isPending}
-      submitLabel="Request Airdrop"
+      submitLabel={mutation.isPending ? 'Requesting…' : 'Request Airdrop'}
       submit={() => mutation.mutateAsync(parseFloat(amount))}
     >
       <Label htmlFor="amount">Amount</Label>
@@ -292,14 +344,25 @@ function ModalSend({ address }: { address: PublicKey }) {
   const [amount, setAmount] = useState('1')
 
   if (!address || !wallet.sendTransaction) {
-    return <div>Wallet not connected</div>
+    return (
+      <Button variant="outline" disabled className="h-10 gap-1.5 rounded-full border-white/10 bg-white/5">
+        <ArrowUpRight className="h-4 w-4" />
+        Send
+      </Button>
+    )
   }
 
   return (
     <AppModal
       title="Send"
+      trigger={
+        <Button className="h-10 gap-1.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:from-violet-400 hover:to-fuchsia-400">
+          <ArrowUpRight className="h-4 w-4" />
+          Send
+        </Button>
+      }
       submitDisabled={!destination || !amount || mutation.isPending}
-      submitLabel="Send"
+      submitLabel={mutation.isPending ? 'Sending…' : 'Send'}
       submit={() => {
         mutation.mutateAsync({
           destination: new PublicKey(destination),
