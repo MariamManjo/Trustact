@@ -222,8 +222,23 @@ export function TrustactFeature() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-violet-950/40 via-neutral-950 to-neutral-950 shadow-sm">
-              <div className="relative z-10 px-6 pt-9 text-center">
+            <div
+              className="relative overflow-hidden rounded-2xl py-2"
+              style={{
+                backgroundImage:
+                  'radial-gradient(ellipse 90% 70% at 50% 20%, rgba(139,92,246,0.16) 0%, rgba(0,0,0,0) 70%)',
+              }}
+            >
+              {[0, 1, 2].map((i) => (
+                <motion.span
+                  key={i}
+                  className="absolute h-1.5 w-1.5 rounded-full bg-fuchsia-400/70 blur-[1px]"
+                  style={{ left: `${22 + i * 28}%`, top: `${18 + (i % 2) * 10}%` }}
+                  animate={{ y: [0, -14, 0], opacity: [0.2, 0.8, 0.2] }}
+                  transition={{ duration: 3 + i * 0.6, repeat: Infinity, ease: 'easeInOut', delay: i * 0.5 }}
+                />
+              ))}
+              <div className="relative z-10 px-6 pt-7 text-center">
                 <p className="text-[1.6rem] leading-tight font-semibold tracking-tight text-balance">
                   Before it spends your money,
                   <br />
