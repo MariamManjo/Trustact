@@ -8,6 +8,7 @@ import { Bell, Camera, CheckCircle2, MapPin, ThumbsDown, ThumbsUp } from 'lucide
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ConnectWalletModal } from './connect-wallet-modal'
+import { CameraCapture } from './camera-capture'
 import { useOpenRounds, useReputation, useSubmitAnswer, type OpenRoundSummary } from './rounds-data-access'
 
 function NotifySignup() {
@@ -185,18 +186,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
               </button>
             </div>
 
-            {photoRequired && (
-              <div className="space-y-1">
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-                  className="w-full text-xs text-muted-foreground file:mr-2 file:rounded-md file:border-0 file:bg-white/10 file:px-2 file:py-1 file:text-xs file:text-foreground"
-                />
-                {photo && <p className="text-xs text-violet-400">{photo.name} attached</p>}
-              </div>
-            )}
+            {photoRequired && <CameraCapture onCapture={setPhoto} />}
 
             {locationRequired && (
               <div className="space-y-1">
