@@ -115,11 +115,10 @@
     @apply border-border outline-ring/50;
   }
 
+  /* Trustact is dark-only by design (see brand.md) — no light theme exists,
+     so this applies unconditionally rather than gated behind .dark. */
   body {
     @apply text-foreground;
-  }
-
-  .dark body {
     background:
       radial-gradient(ellipse 900px 600px at 50% -10%, oklch(0.32 0.14 300 / 55%), transparent 60%),
       radial-gradient(ellipse 700px 500px at 100% 100%, oklch(0.24 0.1 305 / 35%), transparent 60%),

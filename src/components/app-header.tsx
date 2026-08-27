@@ -4,7 +4,6 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
-import { ThemeSelect } from '@/components/theme-select'
 import { ClusterUiSelect } from './cluster/cluster-ui'
 import { HeaderWalletPill } from '@/components/trustsaur/header-wallet-pill'
 import { BrandMark } from '@/components/trustsaur/brand-mark'
@@ -53,9 +52,8 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
 
         <div className="hidden items-center gap-2 md:flex">
           <HeaderWalletPill />
-          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1">
+          <div className="rounded-full border border-white/10 bg-white/5 p-1">
             <ClusterUiSelect />
-            <ThemeSelect />
           </div>
         </div>
 
@@ -79,10 +77,7 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
               </ul>
               <div className="flex flex-col gap-3">
                 <HeaderWalletPill />
-                <div className="flex items-center gap-2">
-                  <ClusterUiSelect />
-                  <ThemeSelect />
-                </div>
+                <ClusterUiSelect />
               </div>
             </div>
           </div>
