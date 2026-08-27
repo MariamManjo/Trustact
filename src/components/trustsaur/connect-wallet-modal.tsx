@@ -103,16 +103,23 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
 
   const entries: WalletEntry[] = useMemo(() => {
     const detected = wallets.filter((w) => w.readyState === WalletReadyState.Installed)
-    const findDetected = (name: string) =>
-      detected.find((w) => w.adapter.name.toLowerCase() === name.toLowerCase()) ??
-      detected.find((w) => w.adapter.name.toLowerCase().includes(firstWord(name)))
+    const findIn = (list: typeof wallets, name: string) =>
+      list.find((w) => w.adapter.name.toLowerCase() === name.toLowerCase()) ??
+      list.find((w) => w.adapter.name.toLowerCase().includes(firstWord(name)))
+    const findDetected = (name: string) => findIn(detected, name)
+    // Falls back to the full list (installed or not) purely for the icon —
+    // a few wallets are registered explicitly (see solana-provider.tsx)
+    // specifically so their real logo is available even when not installed,
+    // instead of the plain letter-avatar fallback.
+    const findAny = (name: string) => findIn(wallets, name)
 
     const curated: WalletEntry[] = CURATED_WALLETS.map((curated) => {
       const match = findDetected(curated.name)
+      const iconMatch = match ?? findAny(curated.name)
       return {
         name: curated.name,
         adapterName: match?.adapter.name ?? null,
-        icon: match?.adapter.icon ?? null,
+        icon: iconMatch?.adapter.icon ?? null,
         installUrl: curated.installUrl,
         installed: Boolean(match),
         label: match ? 'Detected' : curated.popular ? 'Popular' : null,

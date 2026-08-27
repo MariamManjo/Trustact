@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
-import { ClusterUiSelect } from './cluster/cluster-ui'
+import { NetworkBadge } from './cluster/cluster-ui'
 import { HeaderWalletPill } from '@/components/trustsaur/header-wallet-pill'
 import { BrandMark } from '@/components/trustsaur/brand-mark'
 
@@ -56,7 +56,7 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
 
           <div className="hidden items-center gap-2 md:flex">
             <HeaderWalletPill />
-            <ClusterUiSelect />
+            <NetworkBadge />
           </div>
         </div>
       </header>
@@ -83,9 +83,9 @@ export function AppHeader({ links = [] }: { links: { label: string; path: string
                 </li>
               ))}
             </ul>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col items-start gap-2">
               <HeaderWalletPill block />
-              <ClusterUiSelect block />
+              <NetworkBadge />
             </div>
           </div>
         </div>
