@@ -17,7 +17,7 @@ export function AppFooter() {
           <div className="max-w-xs space-y-3">
             <BrandMark iconClassName="h-7 w-7" wordmarkClassName="h-4" />
             <p className="text-sm leading-relaxed text-neutral-500">
-              Human DePIN — proof-of-presence infrastructure for AI agents. Settled in SOL, no native token.
+              Real people, answering real questions for real money — settled on Solana. No token, no NFTs.
             </p>
           </div>
 

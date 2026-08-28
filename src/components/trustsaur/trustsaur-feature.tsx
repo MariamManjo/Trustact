@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, Clock, AlertTriangle, ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { HeroCharacter } from './hero-character'
+import { LandingPitch } from './landing-pitch'
 import { LocationMap } from './location-map'
 import Link from 'next/link'
 
@@ -193,27 +193,7 @@ export function TrustactFeature() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="relative py-2">
-              {[0, 1, 2].map((i) => (
-                <motion.span
-                  key={i}
-                  className="absolute h-1.5 w-1.5 rounded-full bg-fuchsia-400/70 blur-[1px]"
-                  style={{ left: `${22 + i * 28}%`, top: `${18 + (i % 2) * 10}%` }}
-                  animate={{ y: [0, -14, 0], opacity: [0.2, 0.8, 0.2] }}
-                  transition={{ duration: 3 + i * 0.6, repeat: Infinity, ease: 'easeInOut', delay: i * 0.5 }}
-                />
-              ))}
-              <div className="relative z-10 px-6 pt-1 text-center">
-                <p className="text-[1.8rem] leading-tight font-black tracking-tight text-balance text-white md:text-[2.1rem]">
-                  Human DePIN — proof-of-presence infrastructure for AI agents.
-                </p>
-                <p className="mx-auto mt-2 max-w-lg text-sm font-medium text-muted-foreground">
-                  Verifiers stake real money on ground-truth facts a model has no way to know.
-                  Settled in SOL, no native token.
-                </p>
-              </div>
-              <HeroCharacter />
-            </div>
+            <LandingPitch />
           </motion.div>
         )}
       </AnimatePresence>
