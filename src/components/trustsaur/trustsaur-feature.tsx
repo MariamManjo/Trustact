@@ -4,10 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { CheckCircle2, XCircle, Clock, AlertTriangle, ArrowUpRight } from 'lucide-react'
+import { CheckCircle2, Clock, AlertTriangle, ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { RoundJudgeCards } from './round-judge-cards'
 import { HeroCharacter } from './hero-character'
 
 function Mascot({ className = 'h-11 w-11', bounce = false }: { className?: string; bounce?: boolean }) {
@@ -28,14 +27,11 @@ type Stage =
   | 'checking'
   | 'no-verification-needed'
   | 'collecting'
-  | 'judging'
-  | 'paying'
-  | 'paid'
-  | 'declined'
+  | 'settling'
+  | 'resolved'
   | 'expired'
 
 const POLL_INTERVAL_MS = 2000
-const DEFAULT_FEE_SOL = 0.02
 
 interface CheckResult {
   needsHumanVerification: boolean
@@ -43,6 +39,7 @@ interface CheckResult {
   reasoning: string
   verificationQuestion?: string
   roundId?: string
+  stakeLamports?: number
 }
 
 interface RoundAnswer {
@@ -71,13 +68,14 @@ interface RoundPayment {
   recipients: { wallet: string; amountSol: number }[]
 }
 
+type ResolutionKind = 'unanimous' | 'majority' | 'tie' | 'solo'
+
 interface Round {
   id: string
   question: string
-  feeLamports: number
-  status: 'collecting' | 'judging' | 'expired' | 'resolved'
+  status: 'collecting' | 'judging' | 'settling' | 'expired' | 'resolved'
   answers: RoundAnswer[]
-  bonusWinnerWallet?: string
+  resolutionKind?: ResolutionKind
   payment?: RoundPayment
   purrAwards?: Record<string, { amount: number; breakdown: PurrBreakdown }>
 }
@@ -99,14 +97,12 @@ function formatWallet(wallet: string): string {
 export function TrustactFeature() {
   const { publicKey } = useWallet()
   const [action, setAction] = useState(EXAMPLE_ACTION)
-  const [feeSol, setFeeSol] = useState(DEFAULT_FEE_SOL)
   const [photoRequired, setPhotoRequired] = useState(false)
   const [locationRequired, setLocationRequired] = useState(false)
   const [stage, setStage] = useState<Stage>('idle')
   const [check, setCheck] = useState<CheckResult | null>(null)
   const [round, setRound] = useState<Round | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [judging, setJudging] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   function stopPolling() {
@@ -114,6 +110,8 @@ export function TrustactFeature() {
     pollRef.current = null
   }
 
+  // No asker judging step — a closed round settles itself by consensus
+  // server-side, so polling just watches for that to land.
   function pollRound(roundId: string) {
     stopPolling()
     pollRef.current = setInterval(async () => {
@@ -123,9 +121,11 @@ export function TrustactFeature() {
         if (!res.ok) return
 
         setRound(data)
-        if (data.status === 'judging') {
+        if (data.status === 'judging' || data.status === 'settling') {
+          setStage('settling')
+        } else if (data.status === 'resolved') {
           stopPolling()
-          setStage('judging')
+          setStage('resolved')
         } else if (data.status === 'expired') {
           stopPolling()
           setStage('expired')
@@ -150,7 +150,6 @@ export function TrustactFeature() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action,
-          feeSol,
           askerWallet: publicKey?.toBase58(),
           proofRequirements: { photoRequired, locationRequired },
         }),
@@ -170,31 +169,6 @@ export function TrustactFeature() {
     } catch (err: unknown) {
       setError(getErrorMessage(err))
       setStage('idle')
-    }
-  }
-
-  async function submitJudgments(judgments: Record<string, 'correct' | 'incorrect'>, bonusWinnerWallet?: string) {
-    if (!round) return
-    setJudging(true)
-    setError(null)
-    setStage('paying')
-
-    try {
-      const res = await fetch(`/api/rounds/${round.id}/judge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ askerWallet: publicKey?.toBase58(), judgments, bonusWinnerWallet }),
-      })
-      const data = (await res.json()) as Round
-      if (!res.ok) throw new Error((data as unknown as { error?: string }).error ?? 'Judging failed.')
-
-      setRound(data)
-      setStage(data.payment ? 'paid' : 'declined')
-    } catch (err: unknown) {
-      setError(getErrorMessage(err))
-      setStage('judging')
-    } finally {
-      setJudging(false)
     }
   }
 
@@ -256,19 +230,9 @@ export function TrustactFeature() {
           />
 
           {stage === 'idle' && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <label htmlFor="fee-sol">Verifier fee</label>
-              <input
-                id="fee-sol"
-                type="number"
-                min={0}
-                step={0.001}
-                value={feeSol}
-                onChange={(e) => setFeeSol(Number(e.target.value))}
-                className="w-24 rounded-md border border-white/10 bg-black/20 px-2 py-1 text-sm text-foreground focus:border-violet-500/40 focus:outline-none"
-              />
-              <span>SOL — split among correct verifiers (min. ~$1)</span>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Free to post. Verifiers stake their own SOL on their answer — no self-judging, resolved by consensus.
+            </p>
           )}
 
           {stage === 'idle' && (
@@ -375,14 +339,14 @@ export function TrustactFeature() {
             </motion.div>
           )}
 
-          {(stage === 'judging' || stage === 'paying') && round && (
-            <motion.div key="judging" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+          {stage === 'settling' && round && (
+            <motion.div key="settling" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
               <Card className="py-4">
-                <CardContent className="space-y-3">
-                  <p className="text-sm font-medium">
-                    {round.answers.length} answers are in — mark each one and pick a standout for a bonus
+                <CardContent className="flex items-center gap-3">
+                  <Mascot className="h-10 w-10 rounded-full" bounce />
+                  <p className="text-sm text-muted-foreground">
+                    {round.answers.length} answers in — settling by consensus, no one judges their own round…
                   </p>
-                  <RoundJudgeCards answers={round.answers} onSubmit={submitJudgments} submitting={judging} />
                 </CardContent>
               </Card>
             </motion.div>
@@ -402,25 +366,15 @@ export function TrustactFeature() {
             </motion.div>
           )}
 
-          {stage === 'declined' && (
-            <motion.div key="declined" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="border-red-500/30 bg-red-500/5 py-4">
-                <CardContent className="flex items-center gap-2 text-sm font-medium text-red-400">
-                  <XCircle className="h-4 w-4 shrink-0" />
-                  No answer was judged correct — agent will not spend any money.
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {stage === 'paid' && round?.payment && (
-            <motion.div key="paid" initial={{ opacity: 0, y: 6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
+          {stage === 'resolved' && round?.payment && (
+            <motion.div key="resolved" initial={{ opacity: 0, y: 6, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
               <Card className="border-violet-500/40 bg-violet-500/5 py-4">
                 <CardContent className="space-y-3">
                   <div className="flex items-center gap-2 text-sm font-medium text-violet-500">
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    Payment sent — {round.payment.totalAmountSol} SOL split across {round.payment.recipients.length}{' '}
-                    verifier{round.payment.recipients.length === 1 ? '' : 's'}
+                    {round.resolutionKind === 'majority'
+                      ? `Majority resolved — ${round.payment.totalAmountSol} SOL split across ${round.payment.recipients.length} correct verifier${round.payment.recipients.length === 1 ? '' : 's'}`
+                      : `${round.resolutionKind === 'solo' ? 'Solo answer' : round.resolutionKind === 'tie' ? 'No clear majority' : 'Unanimous'} — stakes returned, no platform cut`}
                   </div>
                   <p className="rounded-md bg-black/20 p-2 font-mono text-xs break-all text-muted-foreground">
                     {round.payment.signature}
@@ -438,7 +392,6 @@ export function TrustactFeature() {
                   <div className="space-y-1.5">
                     {round.payment.recipients.map((r) => {
                       const purr = round.purrAwards?.[r.wallet]
-                      const isBonus = r.wallet === round.bonusWinnerWallet
                       return (
                         <div
                           key={r.wallet}
@@ -453,7 +406,7 @@ export function TrustactFeature() {
                           />
                           <div className="flex-1 space-y-0.5">
                             <div className="text-xs font-medium text-violet-500">
-                              {formatWallet(r.wallet)} {isBonus && '⭐'} — {r.amountSol} SOL
+                              {formatWallet(r.wallet)} — {r.amountSol} SOL
                               {purr && ` + ${purr.amount} $PURR`}
                             </div>
                           </div>

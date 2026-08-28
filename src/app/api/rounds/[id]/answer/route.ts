@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { put } from '@vercel/blob'
-import { submitAnswer, type AnswerLocation } from '@/lib/verification-rounds'
+import {
+  submitAnswer,
+  isSignatureUsed,
+  markSignatureUsed,
+  STAKE_LAMPORTS,
+  type AnswerLocation,
+} from '@/lib/verification-rounds'
+import { verifyStakeTransfer } from '@/lib/solana-pay'
+import { settleRound } from '@/lib/round-payout'
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
@@ -13,11 +21,16 @@ function buildMapUrl(lat: number, lng: number): string {
 
 /**
  * POST /api/rounds/[id]/answer
- * multipart/form-data: verifierWallet, answer ('yes'|'no'), note?, photo? (File), lat?, lng?
+ * multipart/form-data: verifierWallet, answer ('yes'|'no'), stakeSignature, note?, photo? (File), lat?, lng?
  *
- * Photo (if present) is uploaded to Vercel Blob; location (if present)
- * becomes a plain Google Maps link — no map-embed API key needed, and a
- * judge card only ever needs to show one pin at a time.
+ * stakeSignature is the on-chain signature of a transfer of at least
+ * STAKE_LAMPORTS from verifierWallet to the treasury address — verified
+ * before the answer is accepted, and marked used so it can't be replayed
+ * for a second answer. Photo (if present) goes to Vercel Blob; location
+ * becomes a plain Google Maps link.
+ *
+ * If this answer closes the round (full, or the window already passed),
+ * settles it immediately by consensus — no separate judge step.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -26,6 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const form = await req.formData()
     const verifierWallet = form.get('verifierWallet')
     const answer = form.get('answer')
+    const stakeSignature = form.get('stakeSignature')
     const note = form.get('note')
     const photo = form.get('photo')
     const lat = form.get('lat')
@@ -36,6 +50,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     if (answer !== 'yes' && answer !== 'no') {
       return NextResponse.json({ error: 'answer must be "yes" or "no".' }, { status: 400 })
+    }
+    if (typeof stakeSignature !== 'string' || !stakeSignature) {
+      return NextResponse.json({ error: `Stake ${STAKE_LAMPORTS / 1_000_000_000} SOL to answer.` }, { status: 400 })
+    }
+
+    if (await isSignatureUsed(stakeSignature)) {
+      return NextResponse.json({ error: 'This stake has already been used for an answer.' }, { status: 400 })
+    }
+
+    const stakeCheck = await verifyStakeTransfer(stakeSignature, verifierWallet, STAKE_LAMPORTS)
+    if (!stakeCheck.ok) {
+      return NextResponse.json({ error: stakeCheck.reason }, { status: 400 })
     }
 
     let photoUrl: string | undefined
@@ -56,13 +82,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
 
-    const round = await submitAnswer(id, {
+    let round = await submitAnswer(id, {
       verifierWallet,
       answer,
+      stakeSignature,
       note: typeof note === 'string' && note.trim() ? note.trim().slice(0, 500) : undefined,
       photoUrl,
       location,
     })
+    await markSignatureUsed(stakeSignature)
+
+    if (round.status === 'judging') {
+      round = await settleRound(round)
+    }
 
     return NextResponse.json(round)
   } catch (err) {

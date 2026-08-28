@@ -1,26 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { assessAgentAction } from '@/lib/verify-action'
-import { createRound } from '@/lib/verification-rounds'
-import { usdToLamports } from '@/lib/sol-price'
+import { createRound, STAKE_LAMPORTS } from '@/lib/verification-rounds'
 import { VERIFICATION_WINDOW_SECONDS } from '@/lib/verification-window'
 import { notifyNewRound } from '@/lib/notify-verifiers'
 
-const MIN_FEE_USD = 1
-
 /**
  * POST /api/rounds
- * body: { action: string, feeSol?: number, askerWallet?: string, proofRequirements?: { photoRequired?: boolean, locationRequired?: boolean } }
+ * body: { action: string, askerWallet?: string, proofRequirements?: { photoRequired?: boolean, locationRequired?: boolean } }
  *
- * Runs the AI gatekeeper; if human verification is needed, opens a round up
- * to 5 verifiers can answer. The asker sets the fee (SOL), with a $1
- * equivalent minimum enforced here, and can require photo/location proof.
+ * Free to post — there's no asker fee. Runs the AI gatekeeper; if human
+ * verification is needed, opens a round up to 5 verifiers can answer.
+ * Verifiers stake STAKE_LAMPORTS of their own to answer (see the answer
+ * route) and the round resolves by consensus among them, not by the asker.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}))
     const action = typeof body?.action === 'string' ? body.action : undefined
-    const feeSol = typeof body?.feeSol === 'number' ? body.feeSol : undefined
     const askerWallet = typeof body?.askerWallet === 'string' ? body.askerWallet : undefined
     const photoRequired = body?.proofRequirements?.photoRequired === true
     const locationRequired = body?.proofRequirements?.locationRequired === true
@@ -38,21 +34,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ...assessment, liveVerifier: false })
     }
 
-    const minFeeLamports = await usdToLamports(MIN_FEE_USD)
-    const requestedLamports = feeSol ? Math.round(feeSol * LAMPORTS_PER_SOL) : minFeeLamports
-
-    if (requestedLamports < minFeeLamports) {
-      return NextResponse.json(
-        { error: `Fee must be at least ${(minFeeLamports / LAMPORTS_PER_SOL).toFixed(4)} SOL (~$${MIN_FEE_USD}).` },
-        { status: 400 }
-      )
-    }
-
     const round = await createRound({
       action,
       question: assessment.verificationQuestion,
       askerWallet,
-      feeLamports: requestedLamports,
       proofRequirements: { photoRequired, locationRequired },
       windowSeconds: VERIFICATION_WINDOW_SECONDS,
     })
@@ -64,7 +49,7 @@ export async function POST(req: NextRequest) {
       liveVerifier: true,
       roundId: round.id,
       proofRequirements: round.proofRequirements,
-      feeLamports: round.feeLamports,
+      stakeLamports: STAKE_LAMPORTS,
     })
   } catch (err) {
     console.error('rounds create error:', err)

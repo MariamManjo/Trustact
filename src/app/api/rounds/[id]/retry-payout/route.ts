@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getRound } from '@/lib/verification-rounds'
-import { executeRoundPayout } from '@/lib/round-payout'
+import { payoutJudgedRound } from '@/lib/round-payout'
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
@@ -9,14 +9,14 @@ function getErrorMessage(error: unknown): string {
 
 /**
  * POST /api/rounds/[id]/retry-payout
- * body: { askerWallet?: string }
  *
- * Safety net for when judgments were saved but the SOL transfer then threw
- * (e.g. a devnet RPC hiccup) — re-attempts payout from the already-stored
- * judgments without asking the asker to re-judge. Same ownership check as
- * /judge — see that route's comment for the rationale.
+ * Safety net for when a round was consensus-judged (flipped to 'settling')
+ * but the SOL transfer then threw (e.g. a devnet RPC hiccup) — re-attempts
+ * payout from the already-recorded judgments without re-judging, so a retry
+ * can never flip the outcome. No ownership check: the result is
+ * deterministic from data already on the round, not a decision anyone makes.
  */
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   try {
@@ -29,21 +29,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json(round)
     }
 
-    const body = await req.json().catch(() => ({}))
-    const askerWallet = typeof body?.askerWallet === 'string' ? body.askerWallet : undefined
-    if (round.askerWallet && round.askerWallet !== askerWallet) {
-      return NextResponse.json({ error: 'Only the wallet that asked this question can retry payout.' }, { status: 403 })
-    }
-
     const unjudged = round.answers.some((a) => !a.judgment)
-    if (round.status !== 'judging' || unjudged) {
+    if (round.status !== 'settling' || unjudged || !round.resolutionKind) {
       return NextResponse.json(
-        { error: 'No judgments recorded yet — use /judge first.' },
+        { error: 'This round has no recorded judgment yet — nothing to retry.' },
         { status: 400 }
       )
     }
 
-    const resolved = await executeRoundPayout(round)
+    const resolved = await payoutJudgedRound(round)
     return NextResponse.json(resolved)
   } catch (err) {
     console.error('retry-payout error:', err)

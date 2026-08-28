@@ -1,15 +1,24 @@
 import { Redis } from '@upstash/redis'
+import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 import fs from 'fs'
 import path from 'path'
 import { randomUUID } from 'crypto'
 
 const ROUNDS_PATH = path.join(process.cwd(), '.wallets', 'verification-rounds.json')
+const SIGNATURES_PATH = path.join(process.cwd(), '.wallets', 'used-stake-signatures.json')
 const ROUND_KEY_PREFIX = 'trustsaur:round:'
 const OPEN_ROUNDS_SET = 'trustsaur:rounds:open'
+const USED_SIGNATURES_SET = 'trustsaur:stake-signatures:used'
 
 export const MAX_VERIFIERS = 5
 
-export type RoundStatus = 'collecting' | 'judging' | 'expired' | 'resolved'
+/** Fixed stake every verifier puts up to answer — parimutuel, not a fee the asker pays. */
+export const STAKE_LAMPORTS = 0.01 * LAMPORTS_PER_SOL
+
+/** Cut Trustact keeps from a redistributed (non-unanimous) pool. Never taken on a push or a solo answer. */
+export const PLATFORM_CUT_RATE = 0.1
+
+export type RoundStatus = 'collecting' | 'judging' | 'settling' | 'expired' | 'resolved'
 
 export interface ProofRequirements {
   photoRequired: boolean
@@ -31,7 +40,12 @@ export interface AnswerSubmission {
   submittedAt: number
   withinHalfWindow: boolean
   judgment?: 'correct' | 'incorrect'
+  /** On-chain signature proving this verifier staked STAKE_LAMPORTS before answering. */
+  stakeSignature: string
 }
+
+/** How a round's stake pool was settled, for display and for the pitch-facing "no self-interested judge" claim. */
+export type ResolutionKind = 'unanimous' | 'majority' | 'tie' | 'solo'
 
 export interface PurrAwardRecord {
   amount: number
@@ -56,16 +70,54 @@ export interface VerificationRound {
   action: string
   question: string
   askerWallet?: string
-  feeLamports: number
   proofRequirements: ProofRequirements
   windowSeconds: number
   createdAt: number
   closesAt: number
   status: RoundStatus
   answers: AnswerSubmission[]
-  bonusWinnerWallet?: string
+  resolutionKind?: ResolutionKind
   payment?: MultiPaymentResult
   purrAwards?: Record<string, PurrAwardRecord>
+}
+
+/** Current parimutuel pool for a round — grows as verifiers stake, nothing to do with an asker fee. */
+export function getStakePoolLamports(round: Pick<VerificationRound, 'answers'>): number {
+  return round.answers.length * STAKE_LAMPORTS
+}
+
+/**
+ * Resolves a full set of answers by consensus — no asker, no self-interested
+ * judge. Unanimous and single-answer rounds are a push (everyone's stake
+ * returns, no platform cut); an even split with no clear majority is also a
+ * push, since there's no principled way to pick a winning side. Only a real
+ * majority triggers a redistribution.
+ */
+export function computeConsensus(answers: AnswerSubmission[]): {
+  judgments: Record<string, 'correct' | 'incorrect'>
+  resolutionKind: ResolutionKind
+} {
+  const judgments: Record<string, 'correct' | 'incorrect'> = {}
+
+  if (answers.length === 1) {
+    judgments[answers[0].verifierWallet] = 'correct'
+    return { judgments, resolutionKind: 'solo' }
+  }
+
+  const yesCount = answers.filter((a) => a.answer === 'yes').length
+  const noCount = answers.length - yesCount
+
+  if (yesCount === noCount) {
+    for (const a of answers) judgments[a.verifierWallet] = 'correct'
+    return { judgments, resolutionKind: 'tie' }
+  }
+
+  const majorityAnswer = yesCount > noCount ? 'yes' : 'no'
+  for (const a of answers) {
+    judgments[a.verifierWallet] = a.answer === majorityAnswer ? 'correct' : 'incorrect'
+  }
+  const resolutionKind: ResolutionKind = noCount === 0 || yesCount === 0 ? 'unanimous' : 'majority'
+  return { judgments, resolutionKind }
 }
 
 // Same Redis-with-file-fallback shape used across this app's lib files — Vercel's
@@ -150,7 +202,6 @@ export async function createRound(params: {
   action: string
   question: string
   askerWallet?: string
-  feeLamports: number
   proofRequirements: ProofRequirements
   windowSeconds: number
 }): Promise<VerificationRound> {
@@ -160,7 +211,6 @@ export async function createRound(params: {
     action: params.action,
     question: params.question,
     askerWallet: params.askerWallet,
-    feeLamports: params.feeLamports,
     proofRequirements: params.proofRequirements,
     windowSeconds: params.windowSeconds,
     createdAt: now,
@@ -170,6 +220,40 @@ export async function createRound(params: {
   }
   await persistRound(round)
   return round
+}
+
+/** Global dedup so one stake transaction can never be claimed by two different answers, even across rounds. */
+export async function isSignatureUsed(signature: string): Promise<boolean> {
+  const redis = getRedis()
+  if (redis) {
+    return Boolean(await redis.sismember(USED_SIGNATURES_SET, signature))
+  }
+  const used = loadSignatureFileSet()
+  return used.has(signature)
+}
+
+export async function markSignatureUsed(signature: string): Promise<void> {
+  const redis = getRedis()
+  if (redis) {
+    await redis.sadd(USED_SIGNATURES_SET, signature)
+    return
+  }
+  const used = loadSignatureFileSet()
+  used.add(signature)
+  saveSignatureFileSet(used)
+}
+
+function loadSignatureFileSet(): Set<string> {
+  try {
+    return new Set(JSON.parse(fs.readFileSync(SIGNATURES_PATH, 'utf-8')))
+  } catch {
+    return new Set()
+  }
+}
+
+function saveSignatureFileSet(used: Set<string>) {
+  fs.mkdirSync(path.dirname(SIGNATURES_PATH), { recursive: true })
+  fs.writeFileSync(SIGNATURES_PATH, JSON.stringify([...used]))
 }
 
 export async function getRound(id: string): Promise<VerificationRound | undefined> {
@@ -220,10 +304,24 @@ export async function submitAnswer(
   return closeIfExpired(updated)
 }
 
+/**
+ * Claims a 'judging' round for settlement by flipping it to 'settling'
+ * before any on-chain payout call — a cheap, non-transactional guard against
+ * two concurrent requests both trying to pay out the same round. Returns
+ * null if the round wasn't in 'judging' (already claimed, or not ready).
+ */
+export async function claimForSettlement(id: string): Promise<VerificationRound | null> {
+  const round = await getRound(id)
+  if (!round || round.status !== 'judging') return null
+  const updated: VerificationRound = { ...round, status: 'settling' }
+  await persistRound(updated)
+  return updated
+}
+
 export async function recordJudgments(
   id: string,
   judgments: Record<string, 'correct' | 'incorrect'>,
-  bonusWinnerWallet?: string
+  resolutionKind: ResolutionKind
 ): Promise<VerificationRound> {
   const round = await getRound(id)
   if (!round) throw new Error('Round not found.')
@@ -233,7 +331,7 @@ export async function recordJudgments(
     judgment: judgments[a.verifierWallet] ?? a.judgment,
   }))
 
-  const updated: VerificationRound = { ...round, answers, bonusWinnerWallet }
+  const updated: VerificationRound = { ...round, answers, resolutionKind }
   await persistRound(updated)
   return updated
 }
