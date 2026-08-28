@@ -22,7 +22,7 @@ export default function AccountListFeature() {
       </div>
       <div className="space-y-1">
         <h1 className="text-lg font-semibold tracking-tight">Connect your wallet</h1>
-        <p className="text-sm text-muted-foreground">See your balance, tokens, and transaction history.</p>
+        <p className="text-sm text-muted-foreground">See your balance and transaction history.</p>
       </div>
       <Button
         onClick={() => setOpen(true)}

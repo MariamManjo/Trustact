@@ -1,4 +1,3 @@
-import { PublicKey } from '@solana/web3.js'
 import {
   cachePayout,
   claimForSettlement,
@@ -10,8 +9,8 @@ import {
   type VerificationRound,
 } from './verification-rounds'
 import { releaseMultiVerificationPayment } from './solana-pay'
-import { awardPurr } from './purr-token'
 import { recordJudgment } from './reputation'
+import { calculatePoints, totalPoints } from './reputation-points'
 
 /**
  * Settles a round that just became 'judging' (full, or its window passed) —
@@ -60,28 +59,23 @@ export async function payoutJudgedRound(judged: VerificationRound): Promise<Veri
 
   const payment = await releaseMultiVerificationPayment(recipients, totalLamports)
 
-  // $PURR is the reputation layer, not the real money — a failed mint for
-  // one recipient must never block or roll back the SOL payment above, or
-  // stop the loop for the others.
-  const purrAwards: NonNullable<VerificationRound['purrAwards']> = {}
+  const pointsAwards: NonNullable<VerificationRound['points']> = {}
   for (const answer of judged.answers) {
     const isCorrect = answer.judgment === 'correct'
-    await recordJudgment(answer.verifierWallet, isCorrect)
-    if (!isCorrect) continue
-
-    try {
-      const award = await awardPurr(new PublicKey(answer.verifierWallet), {
+    let awarded = 0
+    if (isCorrect) {
+      const breakdown = calculatePoints({
         withinHalfTimeWindow: answer.withinHalfWindow,
         hasPhotoProof: Boolean(answer.photoUrl),
         hasLocationProof: Boolean(answer.location),
       })
-      purrAwards[answer.verifierWallet] = { amount: award.amount, breakdown: award.breakdown }
-    } catch (purrErr) {
-      console.error('round payout $PURR award error for', answer.verifierWallet, purrErr)
+      awarded = totalPoints(breakdown)
+      pointsAwards[answer.verifierWallet] = { amount: awarded, breakdown }
     }
+    await recordJudgment(answer.verifierWallet, isCorrect, awarded)
   }
 
-  return cachePayout(judged.id, payment, purrAwards)
+  return cachePayout(judged.id, payment, pointsAwards)
 }
 
 /** Re-exported so callers that already import STAKE_LAMPORTS from here keep working. */

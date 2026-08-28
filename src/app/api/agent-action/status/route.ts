@@ -11,7 +11,7 @@ import { settleRound } from '@/lib/round-payout'
  * { status: "settling" }                         — full/closed, resolving by consensus right now
  * { status: "expired" }                          — window closed with zero answers
  * { status: "declined" }                         — resolved, payout failed or nothing to pay (rare)
- * { status: "approved", payment, purrAwards }     — resolved, correct verifiers (or a push refund) paid
+ * { status: "approved", payment, points }         — resolved, correct verifiers (or a push refund) paid
  */
 export async function GET(req: NextRequest) {
   const authError = requireAgentApiKey(req)
@@ -48,5 +48,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ status: 'declined' })
   }
 
-  return NextResponse.json({ status: 'approved', payment: round.payment, purrAwards: round.purrAwards })
+  return NextResponse.json({ status: 'approved', payment: round.payment, points: round.points })
 }

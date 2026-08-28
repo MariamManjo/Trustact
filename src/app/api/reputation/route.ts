@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PublicKey } from '@solana/web3.js'
 import { getReputation } from '@/lib/reputation'
-import { getPurrBalance } from '@/lib/purr-token'
 import { tierFor } from '@/lib/tiers'
 
 /** GET /api/reputation?wallet=<address> */
@@ -12,12 +10,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [reputation, purrBalance] = await Promise.all([
-      getReputation(wallet),
-      getPurrBalance(new PublicKey(wallet)),
-    ])
-
-    return NextResponse.json({ ...reputation, purrBalance, tier: tierFor(purrBalance) })
+    const reputation = await getReputation(wallet)
+    return NextResponse.json({ ...reputation, tier: tierFor(reputation.correct) })
   } catch (err) {
     console.error('reputation error:', err)
     return NextResponse.json({ error: 'Failed to load reputation.' }, { status: 500 })

@@ -43,8 +43,8 @@ export interface ReputationSummary {
   correct: number
   incorrect: number
   accuracy: number
-  purrBalance: number
-  tier: { tier: string; name: string; minPurr: number; feeShare: number; avatarUnlocked: boolean }
+  points: number
+  tier: { tier: string; name: string; minCorrect: number; avatarUnlocked: boolean }
 }
 
 export function useReputation(wallet: string | undefined) {

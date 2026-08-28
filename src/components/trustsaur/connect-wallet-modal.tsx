@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletReadyState, type WalletName } from '@solana/wallet-adapter-base'
@@ -11,7 +11,6 @@ import {
   TrustWalletAdapter,
 } from '@solana/wallet-adapter-wallets'
 import { ArrowLeft, Backpack, ChevronRight, Search, X } from 'lucide-react'
-import { useSignIn } from './auth-session-data-access'
 
 // Icon source only — these instances are never passed to WalletProvider, so
 // they can't affect the actual connect flow. They exist purely to read the
@@ -87,6 +86,18 @@ function isLikelyUserRejection(message: string): boolean {
   return m.includes('reject') || m.includes('declin') || m.includes('cancel') || m.includes('denied')
 }
 
+function walletErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    if (err.message) return err.message
+    // Wallet adapter errors (WalletNotConnectedError, etc.) often ship
+    // with an empty .message — the class name is the useful signal.
+    if (err.name && err.name !== 'Error') {
+      return err.name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/Error$/, '').trim()
+    }
+  }
+  return 'Connection cancelled — try again.'
+}
+
 function WalletIcon({ entry }: { entry: WalletEntry }) {
   if (entry.icon) {
     // eslint-disable-next-line @next/next/no-img-element -- wallet adapter icons are data: URIs
@@ -112,7 +123,6 @@ function WalletIcon({ entry }: { entry: WalletEntry }) {
 
 export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { wallets, wallet, select, connect } = useWallet()
-  const signIn = useSignIn()
 
   const [search, setSearch] = useState('')
   const [pendingWalletName, setPendingWalletName] = useState<WalletName | null>(null)
@@ -120,6 +130,35 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
   const [inlineError, setInlineError] = useState<string | null>(null)
   const connectAttemptRef = useRef<WalletName | null>(null)
   const retriedRef = useRef(false)
+  const pendingWalletNameRef = useRef<WalletName | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onOpenChangeRef = useRef(onOpenChange)
+
+  useLayoutEffect(() => {
+    onOpenChangeRef.current = onOpenChange
+  }, [onOpenChange])
+
+  useLayoutEffect(() => {
+    pendingWalletNameRef.current = pendingWalletName
+  }, [pendingWalletName])
+
+  useEffect(() => {
+    if (!open) {
+      connectAttemptRef.current = null
+      retriedRef.current = false
+      pendingWalletNameRef.current = null
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+    }
+  }, [open])
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
+  }, [])
 
   // Derived, not stored — 'connecting' is just "we've picked a wallet and
   // are waiting on it", so there's nothing to desync.
@@ -138,7 +177,12 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
   }
 
   const entries: WalletEntry[] = useMemo(() => {
-    const detected = wallets.filter((w) => w.readyState === WalletReadyState.Installed)
+    // Installed = extension injected. Loadable = always-available runtimes
+    // (Solana Mobile Wallet Adapter on phones). Skipping Loadable made
+    // mobile look like "no wallet" even though MWA was sitting right there.
+    const detected = wallets.filter(
+      (w) => w.readyState === WalletReadyState.Installed || w.readyState === WalletReadyState.Loadable
+    )
     const findDetected = (name: string) =>
       detected.find((w) => w.adapter.name.toLowerCase() === name.toLowerCase()) ??
       detected.find((w) => w.adapter.name.toLowerCase().includes(firstWord(name)))
@@ -178,77 +222,73 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
     return entries.filter((e) => e.name.toLowerCase().includes(q))
   }, [entries, search])
 
+  const selectedName = wallet?.adapter.name ?? null
+
   // Drives the actual connect() call once `select()` has propagated the
-  // chosen adapter into wallet-adapter-react's own state. Guarded by a ref
-  // (not just the pendingWalletName/wallet deps) because `wallet` from
-  // useWallet() can change reference more than once while a single
-  // selection is settling, which would otherwise re-run this effect and
-  // call connect() a second time on an adapter still mid-connect — most
-  // adapters reject a concurrent connect() call, which looked identical to
-  // the user actually cancelling.
+  // chosen adapter into wallet-adapter-react's own state. Keyed on the
+  // adapter *name*, not the `wallet` object — that object is recreated
+  // whenever the adapter list rebuilds, and the previous cleanup was
+  // treating that as a cancel, which dropped a successful connect() on
+  // the floor and left the modal stuck on "Confirm in your wallet".
   useEffect(() => {
     if (!pendingWalletName) return
-    if (wallet?.adapter.name !== pendingWalletName) return
+    if (selectedName !== pendingWalletName) return
     if (connectAttemptRef.current === pendingWalletName) return
     connectAttemptRef.current = pendingWalletName
 
-    let cancelled = false
+    const attemptName = pendingWalletName
 
-    const timeoutId = setTimeout(() => {
-      if (cancelled) return
-      cancelled = true
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    timeoutRef.current = setTimeout(() => {
+      if (pendingWalletNameRef.current !== attemptName) return
       setPendingWalletName(null)
       setInlineError('Connection timed out — try again.')
     }, 25000)
 
+    const stillThisAttempt = () => pendingWalletNameRef.current === attemptName
+
     const succeed = () => {
-      if (cancelled) return
-      clearTimeout(timeoutId)
+      if (!stillThisAttempt()) return
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
       setPendingWalletName(null)
-      onOpenChange(false)
-      // Fire-and-forget per WALLET_UX_SPEC.md §2: if they decline the
-      // signature, they stay connected but unauthenticated — never
-      // block or reopen anything over a declined sign-in.
-      signIn.mutate()
+      onOpenChangeRef.current(false)
     }
 
     const fail = (err: unknown) => {
-      if (cancelled) return
-      clearTimeout(timeoutId)
+      if (!stillThisAttempt()) return
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
       setPendingWalletName(null)
-      // Surfaces the adapter's real rejection reason (e.g. "User
-      // rejected the request") instead of a fixed generic string, so a
-      // genuine bug is distinguishable from an actual user cancellation.
-      setInlineError(err instanceof Error && err.message ? err.message : 'Connection cancelled — try again.')
+      setInlineError(walletErrorMessage(err))
     }
 
     connect()
       .then(succeed)
       .catch(async (err: unknown) => {
-        if (cancelled) return
-        const message = err instanceof Error && err.message ? err.message : ''
+        if (!stillThisAttempt()) return
+        const message = walletErrorMessage(err)
         // Some wallet extensions (observed with Phantom) occasionally throw
         // a generic, transient error on the very first connect() call after
-        // page load — timing-dependent, not a user action (it disappears
-        // with DevTools open, which slows JS execution enough to dodge the
-        // race). One silent retry clears it in practice. Never retried for
-        // anything that reads like an actual user rejection.
-        if (retriedRef.current || !message || isLikelyUserRejection(message)) {
+        // page load. wallet-adapter also deselects the wallet on any
+        // connect error, so the retry has to select() again before
+        // connect() — otherwise it throws WalletNotSelectedError and
+        // looks like the wallet never connected.
+        if (retriedRef.current || isLikelyUserRejection(message)) {
           fail(err)
           return
         }
         retriedRef.current = true
         await new Promise((resolve) => setTimeout(resolve, 500))
-        if (cancelled) return
+        if (!stillThisAttempt()) return
+        select(attemptName)
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        if (!stillThisAttempt()) return
         connect().then(succeed).catch(fail)
       })
-
-    return () => {
-      cancelled = true
-      clearTimeout(timeoutId)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- connect()/signIn identity changes with `wallet`, which we're already keying on
-  }, [wallet, pendingWalletName])
+    // Do not cancel the in-flight connect on cleanup — a wallet-object
+    // identity change used to swallow a connect that had already succeeded.
+    // Timeout is cleared when the modal closes (see the `open` effect).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- connect()/select identity changes with the selected adapter, which we're already keying on via selectedName
+  }, [selectedName, pendingWalletName])
 
   function handleSelectEntry(entry: WalletEntry) {
     if (!entry.installed || !entry.adapterName) {
@@ -263,6 +303,7 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
     setInlineError(null)
     connectAttemptRef.current = null
     retriedRef.current = false
+    pendingWalletNameRef.current = entry.adapterName
     setConnectingLabel({ name: entry.name, icon: entry.icon })
     setPendingWalletName(entry.adapterName)
     select(entry.adapterName)
@@ -271,6 +312,7 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
   function handleCancelConnecting() {
     connectAttemptRef.current = null
     retriedRef.current = false
+    pendingWalletNameRef.current = null
     setPendingWalletName(null)
   }
 

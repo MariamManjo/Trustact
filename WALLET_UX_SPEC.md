@@ -131,15 +131,13 @@ Panel: 360px wide, `rounded-2xl`, dividers between sections.
   disabled control that's honest beats a button that errors.
 - Skip "Buy" — that's a fiat on-ramp we don't have.
 
-**Section 4 — tokens**
-- Row per token: icon 32px, name + symbol stacked left, balance + USD
-  stacked right.
-- SOL first, then **$PURR** — icon is `/token/purr-512.jpg`, name "Purr
-  Points", balance from `getPurrBalance()`.
-- Under the PURR row, a thin progress bar to the next tier with a label:
-  "35 more to Silver". This is the retention hook made visible, and it's
-  the one element in this whole spec that's genuinely ours rather than
-  borrowed.
+**Section 4 — reputation**
+- SOL first. No second asset row.
+- Show the verifier's public reputation score and tier badge (Rookie /
+  Bronze / Silver / Gold) from `/api/reputation`. Higher reputation earns
+  a visible tier badge — nothing tradable, nothing to speculate on.
+- Under the score, a thin progress bar to the next tier with a label:
+  "3 more correct to Silver". Retention without a ticker.
 
 **Section 5 — footer**
 - "Log out", muted, full width. Clears the session and disconnects.
@@ -174,7 +172,7 @@ Build in this order and stop after each so it can be reviewed:
 
 1. Connect modal (steps 1 + 2, all error states)
 2. Header pill
-3. Wallet dropdown — identity, balance, tokens, log out
+3. Wallet dropdown — identity, balance, reputation, log out
 4. Receive sheet with QR
 5. Sign-in with Solana
 6. Ask form restyle

@@ -34,7 +34,7 @@ const STEPS: Step[] = [
   {
     eyebrow: '4. The payout',
     title: 'Verified, then paid — automatically.',
-    body: 'The moment it’s confirmed, payment fires on-chain. No manual step.',
+    body: 'The moment it’s confirmed, payment fires on-chain in SOL. No native token, no extra step.',
     image: '/onboarding/jumping.png',
   },
 ]

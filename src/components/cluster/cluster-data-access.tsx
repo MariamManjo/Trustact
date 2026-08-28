@@ -25,7 +25,7 @@ export enum ClusterNetwork {
 export const defaultClusters: SolanaCluster[] = [
   {
     name: 'devnet',
-    endpoint: clusterApiUrl('devnet'),
+    endpoint: 'https://api.devnet.solana.com',
     network: ClusterNetwork.Devnet,
   },
   { name: 'local', endpoint: 'http://localhost:8899' },
@@ -36,8 +36,10 @@ export const defaultClusters: SolanaCluster[] = [
   },
 ]
 
-const clusterAtom = atomWithStorage<SolanaCluster>('solana-cluster', defaultClusters[0])
-const clustersAtom = atomWithStorage<SolanaCluster[]>('solana-clusters', defaultClusters)
+// Bumped key so a leftover "local" selection from earlier testing doesn't
+// send tester wallet txs at localhost while payouts hit public devnet.
+const clusterAtom = atomWithStorage<SolanaCluster>('solana-cluster-devnet', defaultClusters[0])
+const clustersAtom = atomWithStorage<SolanaCluster[]>('solana-clusters-devnet', defaultClusters)
 
 const activeClustersAtom = atom<SolanaCluster[]>((get) => {
   const clusters = get(clustersAtom)

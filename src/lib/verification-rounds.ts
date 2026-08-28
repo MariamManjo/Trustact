@@ -3,6 +3,7 @@ import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 import fs from 'fs'
 import path from 'path'
 import { randomUUID } from 'crypto'
+import type { PointsBreakdown } from './reputation-points'
 
 const ROUNDS_PATH = path.join(process.cwd(), '.wallets', 'verification-rounds.json')
 const SIGNATURES_PATH = path.join(process.cwd(), '.wallets', 'used-stake-signatures.json')
@@ -47,15 +48,10 @@ export interface AnswerSubmission {
 /** How a round's stake pool was settled, for display and for the pitch-facing "no self-interested judge" claim. */
 export type ResolutionKind = 'unanimous' | 'majority' | 'tie' | 'solo'
 
-export interface PurrAwardRecord {
+/** Per-round leaderboard points — not an asset. */
+export interface PointsAwardRecord {
   amount: number
-  breakdown: {
-    base: number
-    speedBonus: number
-    photoBonus: number
-    locationBonus: number
-    bonusWinnerBonus: number
-  }
+  breakdown: PointsBreakdown
 }
 
 export interface MultiPaymentResult {
@@ -78,7 +74,7 @@ export interface VerificationRound {
   answers: AnswerSubmission[]
   resolutionKind?: ResolutionKind
   payment?: MultiPaymentResult
-  purrAwards?: Record<string, PurrAwardRecord>
+  points?: Record<string, PointsAwardRecord>
 }
 
 /** Current parimutuel pool for a round — grows as verifiers stake, nothing to do with an asker fee. */
@@ -339,7 +335,7 @@ export async function recordJudgments(
 export async function cachePayout(
   id: string,
   payment: MultiPaymentResult | null,
-  purrAwards: Record<string, PurrAwardRecord>
+  points: Record<string, PointsAwardRecord>
 ): Promise<VerificationRound> {
   const round = await getRound(id)
   if (!round) throw new Error('Round not found.')
@@ -348,7 +344,7 @@ export async function cachePayout(
     ...round,
     status: 'resolved',
     payment: payment ?? undefined,
-    purrAwards,
+    points,
   }
   await persistRound(updated)
   return updated

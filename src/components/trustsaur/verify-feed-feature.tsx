@@ -72,6 +72,10 @@ function NotifySignup() {
     queryClient.invalidateQueries({ queryKey: ['notify-email', wallet] })
   }
 
+  if (sessionLoading) {
+    return <div className="h-[72px] animate-pulse rounded-xl border border-white/10 bg-white/5" />
+  }
+
   // Wallet connected but hasn't signed the Sign-In With Solana message yet.
   if (connected && !sessionLoading && !wallet) {
     return (
@@ -178,6 +182,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
   const [locating, setLocating] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [staking, setStaking] = useState(false)
+  const [stakePhase, setStakePhase] = useState<'signing' | 'confirming' | 'submitting' | null>(null)
   const [stakeError, setStakeError] = useState<string | null>(null)
   const submitAnswer = useSubmitAnswer()
 
@@ -219,6 +224,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
     if (!publicKey || !selected || !canSubmit || !treasuryAddress) return
     setStakeError(null)
     setStaking(true)
+    setStakePhase('signing')
     try {
       // Stake first, on-chain — the answer only counts once this is
       // confirmed, so guessing costs real money instead of being free.
@@ -234,8 +240,10 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
       transaction.feePayer = publicKey
 
       const signature = await sendTransaction(transaction, connection)
+      setStakePhase('confirming')
       await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed')
 
+      setStakePhase('submitting')
       await submitAnswer.mutateAsync({
         roundId: round.id,
         verifierWallet: publicKey.toBase58(),
@@ -250,6 +258,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
       setStakeError(err instanceof Error ? err.message : 'Stake transaction failed — try again.')
     } finally {
       setStaking(false)
+      setStakePhase(null)
     }
   }
 
@@ -296,7 +305,8 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
             <div className="flex gap-2">
               <button
                 onClick={() => setSelected('yes')}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-colors ${
+                disabled={staking}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
                   selected === 'yes' ? 'bg-violet-500 text-white' : 'bg-white/5 text-muted-foreground hover:bg-white/10'
                 }`}
               >
@@ -304,7 +314,8 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
               </button>
               <button
                 onClick={() => setSelected('no')}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-colors ${
+                disabled={staking}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
                   selected === 'no' ? 'bg-red-500/80 text-white' : 'bg-white/5 text-muted-foreground hover:bg-white/10'
                 }`}
               >
@@ -333,8 +344,9 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
+              disabled={staking}
               placeholder="Optional note for the asker"
-              className="min-h-16 w-full resize-none rounded-md border border-white/10 bg-black/20 p-2 text-xs placeholder:text-muted-foreground/60 focus:border-violet-500/40 focus:outline-none"
+              className="min-h-16 w-full resize-none rounded-md border border-white/10 bg-black/20 p-2 text-xs placeholder:text-muted-foreground/60 focus:border-violet-500/40 focus:outline-none disabled:opacity-50"
             />
             {(stakeError || submitAnswer.error) && (
               <p className="text-xs text-red-400">
@@ -347,7 +359,15 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
               onClick={submit}
               className="h-9 w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-xs font-medium text-white hover:from-violet-400 hover:to-fuchsia-400 disabled:opacity-50"
             >
-              {staking ? 'Confirming stake…' : submitAnswer.isPending ? 'Submitting…' : `Stake ${stakeSol} SOL & answer`}
+              {stakePhase === 'signing'
+                ? 'Confirm in your wallet…'
+                : stakePhase === 'confirming'
+                  ? 'Confirming stake…'
+                  : stakePhase === 'submitting' || submitAnswer.isPending
+                    ? 'Submitting answer…'
+                    : !treasuryAddress
+                      ? 'Loading…'
+                      : `Stake ${stakeSol} SOL & answer`}
             </Button>
           </div>
         )}
@@ -375,17 +395,23 @@ function ConnectPrompt() {
 
 function ReputationBadge() {
   const { publicKey } = useWallet()
-  const { data } = useReputation(publicKey?.toBase58())
+  const { data, isLoading } = useReputation(publicKey?.toBase58())
 
-  if (!publicKey || !data) return null
+  if (!publicKey) return null
+  if (isLoading) {
+    return <div className="h-9 animate-pulse rounded-lg border border-white/10 bg-white/5" />
+  }
+  if (!data) return null
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs">
-      <span className="font-medium text-violet-400">{data.tier.name} verifier</span>
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs">
+      <span className="rounded-full bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 px-2 py-0.5 font-medium text-violet-300">
+        {data.tier.name}
+      </span>
       <span className="text-muted-foreground">
         {data.correct} correct · {data.incorrect} incorrect · {Math.round(data.accuracy * 100)}% accuracy
       </span>
-      <span className="text-muted-foreground">{data.purrBalance} $PURR</span>
+      <span className="text-muted-foreground">{data.points} pts</span>
     </div>
   )
 }

@@ -8,6 +8,7 @@ import { CheckCircle2, Clock, AlertTriangle, ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { HeroCharacter } from './hero-character'
+import Link from 'next/link'
 
 function Mascot({ className = 'h-11 w-11', bounce = false }: { className?: string; bounce?: boolean }) {
   return (
@@ -53,12 +54,11 @@ interface RoundAnswer {
   location?: { lat: number; lng: number; mapUrl: string }
 }
 
-interface PurrBreakdown {
+interface PointsBreakdown {
   base: number
   speedBonus: number
   photoBonus: number
   locationBonus: number
-  bonusWinnerBonus: number
 }
 
 interface RoundPayment {
@@ -77,7 +77,7 @@ interface Round {
   answers: RoundAnswer[]
   resolutionKind?: ResolutionKind
   payment?: RoundPayment
-  purrAwards?: Record<string, { amount: number; breakdown: PurrBreakdown }>
+  points?: Record<string, { amount: number; breakdown: PointsBreakdown }>
 }
 
 const MAX_VERIFIERS = 5
@@ -204,13 +204,11 @@ export function TrustactFeature() {
               ))}
               <div className="relative z-10 px-6 pt-1 text-center">
                 <p className="text-[1.8rem] leading-tight font-black tracking-tight text-balance text-white md:text-[2.1rem]">
-                  Before it spends your money,
-                  <br />
-                  it asks real humans first.
+                  Human DePIN — proof-of-presence infrastructure for AI agents.
                 </p>
-                <p className="mx-auto mt-2 max-w-sm text-sm font-medium text-muted-foreground">
-                  A confidence check for autonomous agents — verified by up to 5 real people,
-                  paid automatically on Solana.
+                <p className="mx-auto mt-2 max-w-lg text-sm font-medium text-muted-foreground">
+                  Verifiers stake real money on ground-truth facts a model has no way to know.
+                  Settled in SOL, no native token.
                 </p>
               </div>
               <HeroCharacter />
@@ -263,7 +261,8 @@ export function TrustactFeature() {
               <Button
                 onClick={runAgent}
                 size="sm"
-                className="h-12 w-[320px] max-w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 font-medium text-white shadow-sm hover:from-violet-400 hover:to-fuchsia-400"
+                disabled={!action.trim()}
+                className="h-12 w-[320px] max-w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 font-medium text-white shadow-sm hover:from-violet-400 hover:to-fuchsia-400 disabled:opacity-50"
               >
                 Let agent proceed
               </Button>
@@ -327,12 +326,20 @@ export function TrustactFeature() {
                     <p className="text-sm font-medium">{check.verificationQuestion}</p>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-60" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-60" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                      </span>
+                      {answersCount} of {MAX_VERIFIERS} verifiers answered
                     </span>
-                    {answersCount} of {MAX_VERIFIERS} verifiers answered
+                    <Link
+                      href="/verify"
+                      className="font-medium text-violet-400 underline-offset-2 hover:underline"
+                    >
+                      Answer on Verify →
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
@@ -391,24 +398,27 @@ export function TrustactFeature() {
 
                   <div className="space-y-1.5">
                     {round.payment.recipients.map((r) => {
-                      const purr = round.purrAwards?.[r.wallet]
+                      const award = round.points?.[r.wallet]
+                      const chips = award
+                        ? [
+                            award.breakdown.speedBonus > 0 ? `+${award.breakdown.speedBonus} speed` : null,
+                            award.breakdown.photoBonus > 0 ? `+${award.breakdown.photoBonus} photo` : null,
+                            award.breakdown.locationBonus > 0 ? `+${award.breakdown.locationBonus} location` : null,
+                          ].filter(Boolean)
+                        : []
                       return (
                         <div
                           key={r.wallet}
                           className="flex items-center gap-2 rounded-md bg-black/20 p-2"
                         >
-                          <Image
-                            src="/token/purr-512.jpg"
-                            alt="$PURR"
-                            width={24}
-                            height={24}
-                            className="h-6 w-6 shrink-0 rounded-full object-cover"
-                          />
                           <div className="flex-1 space-y-0.5">
                             <div className="text-xs font-medium text-violet-500">
                               {formatWallet(r.wallet)} — {r.amountSol} SOL
-                              {purr && ` + ${purr.amount} $PURR`}
+                              {award && ` · ${award.amount} pts`}
                             </div>
+                            {chips.length > 0 && (
+                              <div className="text-[11px] text-muted-foreground">{chips.join(' · ')}</div>
+                            )}
                           </div>
                         </div>
                       )

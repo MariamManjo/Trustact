@@ -17,7 +17,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'Trustact',
-  description: 'A confidence check for autonomous AI agents — verified by real humans, paid automatically on Solana.',
+  description:
+    'Human DePIN — proof-of-presence infrastructure for AI agents. Verifiers stake real money on ground-truth facts a model has no way to know. Settled in SOL, no native token.',
 }
 
 const links: { label: string; path: string }[] = [

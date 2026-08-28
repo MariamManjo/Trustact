@@ -4,12 +4,16 @@
 
 Live: [trustact.manjom.works](https://trustact.manjom.works) · Devnet
 
+Human DePIN — proof-of-presence infrastructure for AI agents. Verifiers
+stake real money on ground-truth facts a model has no way to know.
+Settled in SOL, no native token.
+
 Autonomous AI agents (shopping, booking, concierge bots) act on what they
 *know* — not on what's actually true right now. "Is this restaurant open?"
 "Is this item still in stock?" are real-time facts no model can know from
 training data. Trustact is a confidence check: before an agent commits real
-money, it pays a small fee to get that one fact verified by a real person —
-then payment releases automatically on Solana.
+money, it asks a real person first — then settlement happens automatically
+on Solana.
 
 ## How it works
 
@@ -21,15 +25,22 @@ then payment releases automatically on Solana.
    question on `/verify` and answer, optionally backed by a live camera
    capture and/or GPS location (never a file upload — proof has to be taken
    right now, not pulled from a saved photo).
-3. **Judge** — the asker marks each answer correct/incorrect and can pick a
-   speed bonus winner.
-4. **Pay** — a real Solana transaction splits the fee across correct
-   verifiers, and each also earns `$PURR` reputation, which unlocks fee-share
-   tiers over time.
+3. **Settle** — answers resolve by consensus. Unanimous, tie, or solo is a
+   push (stakes returned, no platform cut). A real majority redistributes
+   the stake pool, minus a 10% platform cut.
+4. **Pay** — a real Solana transaction settles in SOL. Correct answers
+   build a public reputation score. Higher reputation earns a visible tier
+   badge — nothing tradable, nothing to speculate on.
 
 Everyone signs in with **Sign-In With Solana** (connect wallet → sign a free
 message proving ownership) — no passwords, no separate accounts. Verifiers
 can optionally opt an email in to get notified when a new question opens.
+
+## Roadmap
+
+Referral program paid in SOL, forever — 10% of a referred verifier's
+future stake-pool earnings, same mechanic as the platform take-rate,
+no separate token.
 
 ## Tech stack
 
@@ -63,10 +74,9 @@ npm run dev
 | `KV_REST_API_URL` / `KV_REST_API_TOKEN` | persistence | omit for local file-store fallback |
 | `BLOB_READ_WRITE_TOKEN` | photo proof storage | Vercel Blob |
 | `RESEND_API_KEY` / `RESEND_EMAIL_DOMAIN` | notification emails | omit to skip sending |
-| `PURR_MINT_ADDRESS` / `PURR_METADATA_URI` | `$PURR` reputation token | see `scripts/create-purr-mint.ts` |
 
 A payer keypair lives at `.wallets/payer.json` (gitignored) — the account
-that signs outgoing SOL/`$PURR` transfers. Generate one and fund it on
+that signs outgoing SOL transfers. Generate one and fund it on
 devnet before testing payouts.
 
 ## Public API

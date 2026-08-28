@@ -2,7 +2,7 @@
 
 ## What this is
 Before an autonomous AI agent (a shopping/booking/concierge agent) spends real
-money on someone's behalf, it pays a small fee to get a real human to verify
+money on someone's behalf, a real human verifies
 one real-world fact it structurally cannot know — "is this place actually
 open right now," "is this listing still live," "is there really a line" —
 then payment releases automatically. AI narrows down *when* a human is
@@ -81,10 +81,8 @@ purple gradient (swapped from an earlier emerald accent).
       person who actually verified, not a fixed placeholder wallet
       (`src/lib/verifier-wallets.ts`, persisted to `.wallets/verifier-registry.json`).
 - [x] **Real Solana payment** (`src/lib/solana-pay.ts`) — a real
-      `SystemProgram.transfer`, currently running against a **local test
-      validator** (not public devnet yet — the public faucet kept getting
-      rate-limited during testing; code doesn't need to change, just which
-      RPC `SOLANA_RPC_URL` points to).
+      `SystemProgram.transfer`, running against **public devnet**
+      (`https://api.devnet.solana.com`). Payer wallet funded (~1.6 SOL).
 - [x] **Public agent-facing API** (`/api/agent-action` +
       `/api/agent-action/status`) — real external agents can call this, not
       just our own UI. Protected by `AGENT_API_KEY` (Bearer token,
@@ -92,8 +90,11 @@ purple gradient (swapped from an earlier emerald accent).
 - [x] Animated onboarding intro (`onboarding-intro.tsx`) — plays every time
       the site opens, glowing/floating mascot, three steps explaining the
       problem/fix/payment.
-- [ ] Public devnet funding still pending (user's action item, not blocked
-      on code).
+- [x] Public devnet funding — payer at `.wallets/payer.json` holds enough
+      SOL for the live-test budget. Verifier notify path is email + `/verify`
+      (the Telegram bot from an earlier iteration is no longer in the repo).
+- [x] `$PURR` mint removed. Tiers are reputation-based (correct-answer
+      count + a leaderboard points number). No native token.
 
 ## Next up (requested, not yet built — for the next session)
 User wants two more things before this feels "real":
