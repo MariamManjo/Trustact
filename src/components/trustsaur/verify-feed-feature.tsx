@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ConnectWalletModal } from './connect-wallet-modal'
 import { CameraCapture } from './camera-capture'
+import { LocationMap } from './location-map'
 import { useAuthSession, useSignIn } from './auth-session-data-access'
 import {
   useOpenRounds,
@@ -338,6 +339,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
                   {location ? 'Location shared' : locating ? 'Getting location…' : 'Share my location'}
                 </Button>
                 {locationError && <p className="text-xs text-red-400">{locationError}</p>}
+                {location && <LocationMap lat={location.lat} lng={location.lng} />}
               </div>
             )}
 

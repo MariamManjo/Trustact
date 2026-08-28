@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { useConnection, useWallet } from '@solana/wallet-adapter-react'
+import { useWallet } from '@solana/wallet-adapter-react'
 import { LAMPORTS_PER_SOL } from '@solana/web3.js'
-import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, Copy, ExternalLink, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ConnectWalletModal } from './connect-wallet-modal'
 import { useSignOut } from './auth-session-data-access'
+import { useGetBalance } from '@/components/account/account-data-access'
 
 function formatSol(lamports: number): string {
   return `${(lamports / LAMPORTS_PER_SOL).toFixed(3)} SOL`
@@ -21,17 +21,15 @@ function ellipsify(address: string): string {
 
 /** `block`: fills the width with a flat h-10 shape, matching the mobile menu's nav rows instead of the header's pill. */
 export function HeaderWalletPill({ block = false }: { block?: boolean }) {
-  const { connection } = useConnection()
   const { publicKey, connected, disconnect } = useWallet()
   const signOut = useSignOut()
   const [modalOpen, setModalOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const { data: lamports, isLoading: balanceLoading } = useQuery({
-    queryKey: ['header-wallet-balance', { endpoint: connection.rpcEndpoint, address: publicKey?.toBase58() }],
-    queryFn: () => connection.getBalance(publicKey!),
-    enabled: connected && Boolean(publicKey),
-    refetchInterval: 30_000,
+  // Same hook, same queryKey, as the Account page — one shared cache so the
+  // two never show a different number for the same wallet at the same time.
+  const { data: lamports, isLoading: balanceLoading } = useGetBalance({
+    address: publicKey ?? undefined,
   })
 
   const address = publicKey?.toBase58()

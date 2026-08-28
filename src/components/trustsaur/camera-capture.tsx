@@ -105,7 +105,11 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
     return (
       <div className="space-y-2">
         {/* eslint-disable-next-line @next/next/no-img-element -- object URL from a live capture, not an optimizable remote asset */}
-        <img src={previewUrl} alt="Captured proof" className="h-40 w-full rounded-lg object-cover" />
+        <img
+          src={previewUrl}
+          alt="Captured proof"
+          className="h-40 w-full rounded-lg bg-black object-contain"
+        />
         <Button
           type="button"
           variant="outline"
@@ -123,7 +127,7 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
   if (stage === 'streaming') {
     return (
       <div className="space-y-2">
-        <video ref={videoRef} muted playsInline className="h-40 w-full rounded-lg bg-black object-cover" />
+        <video ref={videoRef} muted playsInline className="h-40 w-full rounded-lg bg-black object-contain" />
         <Button
           type="button"
           size="sm"

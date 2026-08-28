@@ -8,6 +8,7 @@ import { CheckCircle2, Clock, AlertTriangle, ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { HeroCharacter } from './hero-character'
+import { LocationMap } from './location-map'
 import Link from 'next/link'
 
 function Mascot({ className = 'h-11 w-11', bounce = false }: { className?: string; bounce?: boolean }) {
@@ -424,6 +425,20 @@ export function TrustactFeature() {
                       )
                     })}
                   </div>
+
+                  {round.answers.some((a) => a.location) && (
+                    <div className="space-y-1.5 border-t border-white/10 pt-3">
+                      <p className="text-xs font-medium text-muted-foreground">Location proof</p>
+                      {round.answers
+                        .filter((a) => a.location)
+                        .map((a) => (
+                          <div key={a.verifierWallet} className="space-y-1">
+                            <p className="text-[11px] text-muted-foreground">{formatWallet(a.verifierWallet)}</p>
+                            <LocationMap lat={a.location!.lat} lng={a.location!.lng} />
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

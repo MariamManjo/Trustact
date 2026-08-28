@@ -13,12 +13,21 @@ import {
 } from '@solana/web3.js'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-export function useGetBalance({ address }: { address: PublicKey }) {
+/**
+ * Single source of truth for SOL balance — the header pill and the Account
+ * page both call this exact hook (same queryKey) so they share one cached
+ * value and refetch together, instead of each polling independently and
+ * drifting out of sync with each other. `address` may be undefined (e.g.
+ * wallet not connected yet) — the query simply stays disabled until it is.
+ */
+export function useGetBalance({ address }: { address: PublicKey | undefined }) {
   const { connection } = useConnection()
 
   return useQuery({
-    queryKey: ['get-balance', { endpoint: connection.rpcEndpoint, address }],
-    queryFn: () => connection.getBalance(address),
+    queryKey: ['get-balance', { endpoint: connection.rpcEndpoint, address: address?.toBase58() }],
+    queryFn: () => connection.getBalance(address as PublicKey),
+    enabled: Boolean(address),
+    refetchInterval: 15_000,
   })
 }
 
