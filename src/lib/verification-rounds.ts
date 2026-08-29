@@ -287,17 +287,25 @@ export async function getRound(id: string): Promise<VerificationRound | undefine
   return closeIfExpired(round)
 }
 
+/**
+ * Oldest first — Redis sets have no guaranteed iteration order, and this
+ * feed polls every few seconds (see useOpenRounds), so leaving it unsorted
+ * let a card's position shift under a verifier mid-answer as the same
+ * unordered set came back in a different order on the next poll.
+ */
 export async function listOpenRounds(): Promise<VerificationRound[]> {
   const redis = getRedis()
   if (redis) {
     const ids = await redis.smembers(OPEN_ROUNDS_SET)
     const rounds = await Promise.all(ids.map((id) => getRound(id)))
-    return rounds.filter((r): r is VerificationRound => r !== undefined && r.status === 'collecting')
+    return rounds
+      .filter((r): r is VerificationRound => r !== undefined && r.status === 'collecting')
+      .sort((a, b) => a.createdAt - b.createdAt)
   }
 
   const store = loadFileStore()
   const rounds = await Promise.all(Object.values(store).map((r) => closeIfExpired(r)))
-  return rounds.filter((r) => r.status === 'collecting')
+  return rounds.filter((r) => r.status === 'collecting').sort((a, b) => a.createdAt - b.createdAt)
 }
 
 /**
