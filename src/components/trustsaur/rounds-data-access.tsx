@@ -47,6 +47,50 @@ export function useReputation(wallet: string | undefined) {
   })
 }
 
+export interface HistoryAnswer {
+  verifierWallet: string
+  answer: 'yes' | 'no'
+  note?: string
+  photoUrl?: string
+  location?: { lat: number; lng: number; mapUrl: string }
+  submittedAt: number
+  judgment?: 'correct' | 'incorrect'
+}
+
+export interface HistoryPayment {
+  signature: string
+  explorerUrl: string
+  totalAmountSol: number
+  recipients: { wallet: string; amountSol: number }[]
+}
+
+export interface HistoryRound {
+  id: string
+  question: string
+  action: string
+  askerWallet: string
+  status: 'judging' | 'settling' | 'expired' | 'resolved'
+  answers: HistoryAnswer[]
+  resolutionKind?: 'unanimous' | 'majority' | 'tie' | 'solo' | 'refund'
+  payment?: HistoryPayment
+  points?: Record<string, { amount: number }>
+  createdAt: number
+}
+
+export function useRoundHistory(wallet: string | undefined) {
+  return useQuery({
+    queryKey: ['rounds-history', wallet],
+    queryFn: async (): Promise<HistoryRound[]> => {
+      const res = await fetch(`/api/rounds/history?wallet=${wallet}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to load history.')
+      return data.rounds
+    },
+    enabled: Boolean(wallet),
+    refetchInterval: 5000,
+  })
+}
+
 export interface AnswerInput {
   roundId: string
   verifierWallet: string
@@ -78,6 +122,7 @@ export function useSubmitAnswer() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rounds-open'] })
+      queryClient.invalidateQueries({ queryKey: ['rounds-history'] })
     },
   })
 }

@@ -7,6 +7,8 @@ import type { PointsBreakdown } from './reputation-points'
 const ROUNDS_PATH = path.join(process.cwd(), '.wallets', 'verification-rounds.json')
 const ROUND_KEY_PREFIX = 'trustsaur:round:'
 const OPEN_ROUNDS_SET = 'trustsaur:rounds:open'
+const WALLET_ASKED_PREFIX = 'trustsaur:wallet:asked:'
+const WALLET_ANSWERED_PREFIX = 'trustsaur:wallet:answered:'
 
 export const MAX_VERIFIERS = 5
 
@@ -179,6 +181,15 @@ async function persistRound(round: VerificationRound): Promise<void> {
     } else {
       await redis.srem(OPEN_ROUNDS_SET, round.id)
     }
+    // Idempotent membership adds so a wallet's "my questions"/"my answers"
+    // history stays discoverable after a round leaves OPEN_ROUNDS_SET —
+    // otherwise a resolved round is only reachable if you already know its id.
+    await redis.sadd(WALLET_ASKED_PREFIX + round.askerWallet, round.id)
+    if (round.answers.length > 0) {
+      await Promise.all(
+        round.answers.map((a) => redis.sadd(WALLET_ANSWERED_PREFIX + a.verifierWallet, round.id))
+      )
+    }
     return
   }
 
@@ -278,6 +289,35 @@ export async function listOpenRounds(): Promise<VerificationRound[]> {
   const store = loadFileStore()
   const rounds = await Promise.all(Object.values(store).map((r) => closeIfExpired(r)))
   return rounds.filter((r) => r.status === 'collecting')
+}
+
+/**
+ * Every non-open round `wallet` was involved in, as asker or verifier —
+ * newest first. Unlike `listOpenRounds`, these are otherwise undiscoverable
+ * once a round leaves 'collecting': it's dropped from OPEN_ROUNDS_SET and
+ * only reachable by wallet index or by already knowing its id.
+ */
+export async function listWalletHistory(wallet: string): Promise<VerificationRound[]> {
+  const redis = getRedis()
+  if (redis) {
+    const [askedIds, answeredIds] = await Promise.all([
+      redis.smembers(WALLET_ASKED_PREFIX + wallet),
+      redis.smembers(WALLET_ANSWERED_PREFIX + wallet),
+    ])
+    const ids = [...new Set([...askedIds, ...answeredIds])]
+    const rounds = await Promise.all(ids.map((id) => getRound(id)))
+    return rounds
+      .filter((r): r is VerificationRound => r !== undefined && r.status !== 'collecting')
+      .sort((a, b) => b.createdAt - a.createdAt)
+  }
+
+  const store = loadFileStore()
+  const rounds = await Promise.all(Object.values(store).map((r) => closeIfExpired(r)))
+  return rounds
+    .filter(
+      (r) => r.status !== 'collecting' && (r.askerWallet === wallet || r.answers.some((a) => a.verifierWallet === wallet))
+    )
+    .sort((a, b) => b.createdAt - a.createdAt)
 }
 
 export async function submitAnswer(

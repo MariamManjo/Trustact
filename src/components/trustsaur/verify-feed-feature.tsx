@@ -4,13 +4,21 @@ import { useState } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { motion } from 'framer-motion'
-import { Camera, CheckCircle2, MapPin, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { Camera, CheckCircle2, Clock, MapPin, ThumbsDown, ThumbsUp, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { ellipsify } from '@/lib/utils'
 import { ConnectWalletModal } from './connect-wallet-modal'
 import { CameraCapture } from './camera-capture'
 import { LocationMap } from './location-map'
-import { useOpenRounds, useReputation, useSubmitAnswer, type OpenRoundSummary } from './rounds-data-access'
+import {
+  useOpenRounds,
+  useReputation,
+  useRoundHistory,
+  useSubmitAnswer,
+  type HistoryRound,
+  type OpenRoundSummary,
+} from './rounds-data-access'
 
 function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
   const { connected, publicKey } = useWallet()
@@ -182,6 +190,133 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
   )
 }
 
+function historyOutcome(round: HistoryRound): { label: string; tone: 'violet' | 'amber' | 'muted' } {
+  if (round.status === 'judging' || round.status === 'settling') {
+    return { label: 'Settling by consensus…', tone: 'amber' }
+  }
+  if (round.status === 'expired') {
+    return { label: 'Nobody answered — refunding deposit…', tone: 'amber' }
+  }
+  if (round.resolutionKind === 'refund') {
+    return { label: 'Nobody answered in time — deposit refunded', tone: 'muted' }
+  }
+  if (!round.payment) {
+    return { label: 'Resolved — nothing to pay out', tone: 'muted' }
+  }
+  if (round.resolutionKind === 'majority') {
+    return { label: `Majority resolved · ${round.payment.totalAmountSol} SOL split`, tone: 'violet' }
+  }
+  const kind = round.resolutionKind === 'solo' ? 'Solo answer' : round.resolutionKind === 'tie' ? 'No clear majority' : 'Unanimous'
+  return { label: `${kind} · ${round.payment.totalAmountSol} SOL split, no platform cut`, tone: 'violet' }
+}
+
+function HistoryRoundCard({ round, wallet }: { round: HistoryRound; wallet: string }) {
+  const outcome = historyOutcome(round)
+  const isAsker = round.askerWallet === wallet
+  const toneClass =
+    outcome.tone === 'violet'
+      ? 'text-violet-500'
+      : outcome.tone === 'amber'
+        ? 'text-amber-500'
+        : 'text-muted-foreground'
+
+  return (
+    <Card className="py-4">
+      <CardContent className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-medium">{round.question}</p>
+          <span className="shrink-0 rounded-full bg-white/5 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            {isAsker ? 'You asked' : 'You answered'}
+          </span>
+        </div>
+
+        <div className={`flex items-center gap-1.5 text-xs font-medium ${toneClass}`}>
+          {outcome.tone === 'violet' ? (
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          ) : outcome.tone === 'amber' ? (
+            <Clock className="h-3.5 w-3.5 shrink-0" />
+          ) : (
+            <XCircle className="h-3.5 w-3.5 shrink-0" />
+          )}
+          {outcome.label}
+        </div>
+
+        {round.answers.length > 0 && (
+          <div className="space-y-1.5 border-t border-white/10 pt-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              {round.answers.length} answer{round.answers.length === 1 ? '' : 's'}
+            </p>
+            {round.answers.map((a) => (
+              <div
+                key={a.verifierWallet}
+                className="flex items-center gap-2 rounded-md bg-black/20 p-2 text-xs"
+              >
+                {a.answer === 'yes' ? (
+                  <ThumbsUp className="h-3.5 w-3.5 shrink-0 text-violet-400" />
+                ) : (
+                  <ThumbsDown className="h-3.5 w-3.5 shrink-0 text-red-400" />
+                )}
+                <div className="flex-1 space-y-0.5">
+                  <div className="font-medium">
+                    {a.verifierWallet === wallet ? 'You' : ellipsify(a.verifierWallet)}
+                    {' answered '}
+                    {a.answer}
+                    {a.judgment && (
+                      <span className={a.judgment === 'correct' ? 'text-violet-400' : 'text-red-400'}>
+                        {' · '}
+                        {a.judgment}
+                      </span>
+                    )}
+                  </div>
+                  {a.note && <div className="text-muted-foreground">{a.note}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {round.payment && (
+          <a
+            href={round.payment.explorerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block text-xs font-medium text-violet-500 underline-offset-2 hover:underline"
+          >
+            View transaction on Solana Explorer
+          </a>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function HistorySection() {
+  const { publicKey } = useWallet()
+  const wallet = publicKey?.toBase58()
+  const { data: rounds, isLoading } = useRoundHistory(wallet)
+
+  if (!wallet) return null
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="h-24 animate-pulse rounded-xl border border-white/10 bg-white/5" />
+      </div>
+    )
+  }
+  if (!rounds || rounds.length === 0) return null
+
+  return (
+    <div className="space-y-3">
+      <h2 className="text-sm font-semibold tracking-tight text-violet-500">Your history</h2>
+      <div className="space-y-3">
+        {rounds.map((round) => (
+          <HistoryRoundCard key={round.id} round={round} wallet={wallet} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function ConnectPrompt() {
   const [open, setOpen] = useState(false)
   return (
@@ -265,6 +400,8 @@ export function VerifyFeedFeature() {
           </motion.div>
         ))}
       </div>
+
+      <HistorySection />
     </div>
   )
 }
