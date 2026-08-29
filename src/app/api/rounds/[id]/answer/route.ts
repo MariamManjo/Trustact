@@ -4,6 +4,7 @@ import {
   submitAnswer,
   isSignatureUsed,
   markSignatureUsed,
+  getRound,
   STAKE_LAMPORTS,
   type AnswerLocation,
 } from '@/lib/verification-rounds'
@@ -57,6 +58,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (await isSignatureUsed(stakeSignature)) {
       return NextResponse.json({ error: 'This stake has already been used for an answer.' }, { status: 400 })
+    }
+
+    const existingRound = await getRound(id)
+    if (existingRound?.askerWallet && existingRound.askerWallet === verifierWallet) {
+      return NextResponse.json({ error: 'You cannot verify your own question.' }, { status: 400 })
     }
 
     const stakeCheck = await verifyStakeTransfer(stakeSignature, verifierWallet, STAKE_LAMPORTS)

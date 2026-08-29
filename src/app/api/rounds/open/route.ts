@@ -11,6 +11,7 @@ export async function GET() {
         question: r.question,
         action: r.action,
         proofRequirements: r.proofRequirements,
+        askerWallet: r.askerWallet,
         stakeLamports: STAKE_LAMPORTS,
         answersCount: r.answers.length,
         closesAt: r.closesAt,

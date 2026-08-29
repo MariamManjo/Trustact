@@ -281,6 +281,9 @@ export async function submitAnswer(
   if (round.answers.some((a) => a.verifierWallet === submission.verifierWallet)) {
     throw new Error('This wallet has already answered this round.')
   }
+  if (round.askerWallet && round.askerWallet === submission.verifierWallet) {
+    throw new Error('You cannot verify your own question.')
+  }
   if (round.proofRequirements.photoRequired && !submission.photoUrl) {
     throw new Error('This question requires a photo.')
   }

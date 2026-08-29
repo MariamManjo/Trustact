@@ -38,6 +38,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
   const missingPhoto = photoRequired && !photo
   const missingLocation = locationRequired && !location
   const canSubmit = Boolean(selected) && !missingPhoto && !missingLocation
+  const isOwnQuestion = Boolean(round.askerWallet && publicKey && round.askerWallet === publicKey.toBase58())
 
   function shareLocation() {
     setLocationError(null)
@@ -148,6 +149,8 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
           </div>
         ) : !connected ? (
           <ConnectPrompt />
+        ) : isOwnQuestion ? (
+          <p className="text-xs text-muted-foreground">You asked this one, so you can&apos;t answer it yourself.</p>
         ) : (
           <div className="space-y-2">
             <div className="flex gap-2">

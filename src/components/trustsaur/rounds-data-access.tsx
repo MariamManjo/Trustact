@@ -7,6 +7,7 @@ export interface OpenRoundSummary {
   question: string
   action: string
   proofRequirements: { photoRequired: boolean; locationRequired: boolean }
+  askerWallet?: string
   stakeLamports: number
   answersCount: number
   closesAt: number
