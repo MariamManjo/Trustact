@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { assessAgentAction } from '@/lib/verify-action'
 import { requireAgentApiKey } from '@/lib/agent-auth'
-import { createRound } from '@/lib/verification-rounds'
+import { createRound, ASK_FEE_LAMPORTS } from '@/lib/verification-rounds'
+import { depositFromAuthority } from '@/lib/escrow-pay'
+import { loadPayerKeypair } from '@/lib/solana-keys'
 import { VERIFICATION_WINDOW_SECONDS } from '@/lib/verification-window'
 import { notifyNewRound } from '@/lib/notify-verifiers'
 
@@ -18,8 +21,9 @@ import { notifyNewRound } from '@/lib/notify-verifiers'
  * Response — needs a human to verify first:
  *   { status: "pending_verification", requestId, verificationQuestion, statusUrl }
  *   Poll statusUrl (GET /api/agent-action/status?requestId=...) until it
- *   resolves. Up to 5 wallet-connected verifiers can answer; if no human
- *   judges the round in time, it auto-resolves by majority answer.
+ *   resolves. Up to 5 wallet-connected verifiers can answer for free; the
+ *   round's pool (which Trustact funds for this API, not the calling agent)
+ *   is what they split.
  */
 export async function POST(req: NextRequest) {
   const authError = requireAgentApiKey(req)
@@ -50,9 +54,16 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const roundId = randomUUID()
+    const depositSignature = await depositFromAuthority(roundId, ASK_FEE_LAMPORTS)
+
     const round = await createRound({
+      id: roundId,
       action,
       question: assessment.verificationQuestion,
+      askerWallet: loadPayerKeypair().publicKey.toBase58(),
+      feeLamports: ASK_FEE_LAMPORTS,
+      depositSignature,
       proofRequirements: { photoRequired: false, locationRequired: false },
       windowSeconds: VERIFICATION_WINDOW_SECONDS,
     })

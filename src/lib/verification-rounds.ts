@@ -2,22 +2,29 @@ import { Redis } from '@upstash/redis'
 import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 import fs from 'fs'
 import path from 'path'
-import { randomUUID } from 'crypto'
 import type { PointsBreakdown } from './reputation-points'
 
 const ROUNDS_PATH = path.join(process.cwd(), '.wallets', 'verification-rounds.json')
-const SIGNATURES_PATH = path.join(process.cwd(), '.wallets', 'used-stake-signatures.json')
 const ROUND_KEY_PREFIX = 'trustsaur:round:'
 const OPEN_ROUNDS_SET = 'trustsaur:rounds:open'
-const USED_SIGNATURES_SET = 'trustsaur:stake-signatures:used'
 
 export const MAX_VERIFIERS = 5
 
-/** Fixed stake every verifier puts up to answer — parimutuel, not a fee the asker pays. */
-export const STAKE_LAMPORTS = 0.01 * LAMPORTS_PER_SOL
+/**
+ * Minimum an asker deposits to open a round — a stand-in for "$1", not a
+ * live SOL/USD conversion. Answering is free; this deposit is the whole
+ * pool correct answerers split.
+ */
+export const ASK_FEE_LAMPORTS = 0.02 * LAMPORTS_PER_SOL
 
 /** Cut Trustact keeps from a redistributed (non-unanimous) pool. Never taken on a push or a solo answer. */
 export const PLATFORM_CUT_RATE = 0.1
+
+const ROUND_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export function isValidRoundId(id: string): boolean {
+  return ROUND_ID_PATTERN.test(id)
+}
 
 export type RoundStatus = 'collecting' | 'judging' | 'settling' | 'expired' | 'resolved'
 
@@ -41,8 +48,6 @@ export interface AnswerSubmission {
   submittedAt: number
   withinHalfWindow: boolean
   judgment?: 'correct' | 'incorrect'
-  /** On-chain signature proving this verifier staked STAKE_LAMPORTS before answering. */
-  stakeSignature: string
 }
 
 /** How a round's stake pool was settled, for display and for the pitch-facing "no self-interested judge" claim. */
@@ -65,7 +70,11 @@ export interface VerificationRound {
   id: string
   action: string
   question: string
-  askerWallet?: string
+  askerWallet: string
+  /** Lamports the asker actually deposited on-chain — the whole pool correct answerers split. */
+  feeLamports: number
+  /** On-chain signature of the asker's deposit into this round's vault PDA. */
+  depositSignature: string
   proofRequirements: ProofRequirements
   windowSeconds: number
   createdAt: number
@@ -77,9 +86,28 @@ export interface VerificationRound {
   points?: Record<string, PointsAwardRecord>
 }
 
-/** Current parimutuel pool for a round — grows as verifiers stake, nothing to do with an asker fee. */
-export function getStakePoolLamports(round: Pick<VerificationRound, 'answers'>): number {
-  return round.answers.length * STAKE_LAMPORTS
+/** The asker-funded pool correct answerers split — fixed at deposit time, doesn't grow with answers. */
+export function getPoolLamports(round: Pick<VerificationRound, 'feeLamports'>): number {
+  return round.feeLamports
+}
+
+/**
+ * Weight ∝ time remaining in the window when each answer landed — the
+ * earlier an answer comes in, the more time was left, the bigger its share
+ * of a winning pool. Never zero, so even a last-second answer gets a sliver
+ * rather than being fully excluded.
+ */
+export function computeSpeedWeights(
+  answers: Pick<AnswerSubmission, 'verifierWallet' | 'submittedAt'>[],
+  round: Pick<VerificationRound, 'createdAt' | 'windowSeconds'>
+): Record<string, number> {
+  const windowMs = round.windowSeconds * 1000
+  const weights: Record<string, number> = {}
+  for (const a of answers) {
+    const elapsed = a.submittedAt - round.createdAt
+    weights[a.verifierWallet] = Math.max(windowMs - elapsed, 1)
+  }
+  return weights
 }
 
 /**
@@ -194,19 +222,34 @@ async function closeIfExpired(round: VerificationRound): Promise<VerificationRou
   return updated
 }
 
+/**
+ * `id` is chosen by the client before this is called — the asker's on-chain
+ * deposit goes into a vault PDA derived from that same id, so the id has to
+ * exist before the deposit transaction can even be built. Rejects an id
+ * that's already a round: a retried create request must not reset an
+ * existing round back to fresh 'collecting' state.
+ */
 export async function createRound(params: {
+  id: string
   action: string
   question: string
-  askerWallet?: string
+  askerWallet: string
+  feeLamports: number
+  depositSignature: string
   proofRequirements: ProofRequirements
   windowSeconds: number
 }): Promise<VerificationRound> {
+  if (!isValidRoundId(params.id)) throw new Error('Invalid round id.')
+  if (await readRound(params.id)) throw new Error('This round already exists.')
+
   const now = Date.now()
   const round: VerificationRound = {
-    id: randomUUID(),
+    id: params.id,
     action: params.action,
     question: params.question,
     askerWallet: params.askerWallet,
+    feeLamports: params.feeLamports,
+    depositSignature: params.depositSignature,
     proofRequirements: params.proofRequirements,
     windowSeconds: params.windowSeconds,
     createdAt: now,
@@ -216,40 +259,6 @@ export async function createRound(params: {
   }
   await persistRound(round)
   return round
-}
-
-/** Global dedup so one stake transaction can never be claimed by two different answers, even across rounds. */
-export async function isSignatureUsed(signature: string): Promise<boolean> {
-  const redis = getRedis()
-  if (redis) {
-    return Boolean(await redis.sismember(USED_SIGNATURES_SET, signature))
-  }
-  const used = loadSignatureFileSet()
-  return used.has(signature)
-}
-
-export async function markSignatureUsed(signature: string): Promise<void> {
-  const redis = getRedis()
-  if (redis) {
-    await redis.sadd(USED_SIGNATURES_SET, signature)
-    return
-  }
-  const used = loadSignatureFileSet()
-  used.add(signature)
-  saveSignatureFileSet(used)
-}
-
-function loadSignatureFileSet(): Set<string> {
-  try {
-    return new Set(JSON.parse(fs.readFileSync(SIGNATURES_PATH, 'utf-8')))
-  } catch {
-    return new Set()
-  }
-}
-
-function saveSignatureFileSet(used: Set<string>) {
-  fs.mkdirSync(path.dirname(SIGNATURES_PATH), { recursive: true })
-  fs.writeFileSync(SIGNATURES_PATH, JSON.stringify([...used]))
 }
 
 export async function getRound(id: string): Promise<VerificationRound | undefined> {

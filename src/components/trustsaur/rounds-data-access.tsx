@@ -8,7 +8,7 @@ export interface OpenRoundSummary {
   action: string
   proofRequirements: { photoRequired: boolean; locationRequired: boolean }
   askerWallet?: string
-  stakeLamports: number
+  poolLamports: number
   answersCount: number
   closesAt: number
 }
@@ -23,20 +23,6 @@ export function useOpenRounds() {
       return data.rounds
     },
     refetchInterval: 3000,
-  })
-}
-
-/** The address verifiers stake into — rarely changes, safe to cache for the session. */
-export function useTreasuryAddress() {
-  return useQuery({
-    queryKey: ['treasury-address'],
-    queryFn: async (): Promise<string> => {
-      const res = await fetch('/api/treasury')
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to load treasury address.')
-      return data.address
-    },
-    staleTime: Infinity,
   })
 }
 
@@ -65,8 +51,6 @@ export interface AnswerInput {
   roundId: string
   verifierWallet: string
   answer: 'yes' | 'no'
-  /** On-chain signature of the verifier's stake transfer — required, verified server-side. */
-  stakeSignature: string
   note?: string
   photo?: File
   location?: { lat: number; lng: number }
@@ -80,7 +64,6 @@ export function useSubmitAnswer() {
       const form = new FormData()
       form.set('verifierWallet', rest.verifierWallet)
       form.set('answer', rest.answer)
-      form.set('stakeSignature', rest.stakeSignature)
       if (rest.note) form.set('note', rest.note)
       if (photo) form.set('photo', photo)
       if (location) {

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useWallet } from '@solana/wallet-adapter-react'
+import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, Clock, AlertTriangle, ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -10,7 +11,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { LandingPitch } from './landing-pitch'
 import { LocationMap } from './location-map'
 import { ConnectWalletModal } from './connect-wallet-modal'
+import { useDepositToRound } from './escrow-data-access'
 import Link from 'next/link'
+
+const FALLBACK_FEE_LAMPORTS = 0.02 * LAMPORTS_PER_SOL
 
 function Mascot({ className = 'h-11 w-11', bounce = false }: { className?: string; bounce?: boolean }) {
   return (
@@ -28,6 +32,7 @@ function Mascot({ className = 'h-11 w-11', bounce = false }: { className?: strin
 type Stage =
   | 'idle'
   | 'checking'
+  | 'depositing'
   | 'no-verification-needed'
   | 'collecting'
   | 'settling'
@@ -41,8 +46,7 @@ interface CheckResult {
   confidence: number
   reasoning: string
   verificationQuestion?: string
-  roundId?: string
-  stakeLamports?: number
+  feeLamports?: number
 }
 
 interface RoundAnswer {
@@ -98,6 +102,7 @@ function formatWallet(wallet: string): string {
 
 export function TrustactFeature() {
   const { publicKey } = useWallet()
+  const depositToRound = useDepositToRound()
   const [action, setAction] = useState(EXAMPLE_ACTION)
   const [photoRequired, setPhotoRequired] = useState(false)
   const [locationRequired, setLocationRequired] = useState(false)
@@ -152,27 +157,44 @@ export function TrustactFeature() {
     setRound(null)
 
     try {
-      const res = await fetch('/api/rounds', {
+      const assessRes = await fetch('/api/rounds/assess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const assessData = await assessRes.json()
+      if (!assessRes.ok) throw new Error(assessData.error ?? 'Verification failed.')
+
+      const parsed = assessData as CheckResult
+      setCheck(parsed)
+
+      if (!parsed.needsHumanVerification) {
+        setStage('no-verification-needed')
+        return
+      }
+
+      setStage('depositing')
+      const roundId = crypto.randomUUID()
+      const feeLamports = parsed.feeLamports ?? FALLBACK_FEE_LAMPORTS
+      const depositSignature = await depositToRound(roundId, feeLamports)
+
+      const createRes = await fetch('/api/rounds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          roundId,
           action,
+          question: parsed.verificationQuestion,
           askerWallet: publicKey.toBase58(),
+          depositSignature,
           proofRequirements: { photoRequired, locationRequired },
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Verification failed.')
+      const createData = await createRes.json()
+      if (!createRes.ok) throw new Error(createData.error ?? 'Could not open this round.')
 
-      const parsed = data as CheckResult
-      setCheck(parsed)
-
-      if (parsed.needsHumanVerification && parsed.roundId) {
-        setStage('collecting')
-        pollRound(parsed.roundId)
-      } else {
-        setStage('no-verification-needed')
-      }
+      setStage('collecting')
+      pollRound(roundId)
     } catch (err: unknown) {
       setError(getErrorMessage(err))
       setStage('idle')
@@ -216,7 +238,8 @@ export function TrustactFeature() {
 
           {stage === 'idle' && (
             <p className="text-xs text-muted-foreground">
-              Free to post. Verifiers stake their own SOL on their answer, resolved by consensus with no self-judging.
+              Costs a small SOL deposit to ask, starting around $1. That deposit is the pool. Up to 5 people
+              answer for free, correct and fastest answers split it, resolved by consensus with no self-judging.
             </p>
           )}
 
@@ -275,6 +298,23 @@ export function TrustactFeature() {
                   <Mascot className="h-10 w-10 rounded-full" bounce />
                   <p className="text-sm text-muted-foreground">
                     Checking whether I actually know this, or need to ask real people…
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {stage === 'depositing' && (
+            <motion.div key="depositing" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <Card className="py-4">
+                <CardContent className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <Mascot className="h-10 w-10 rounded-full" bounce />
+                    <p className="text-sm text-muted-foreground">Confirm the deposit in your wallet to open this round…</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground/70">
+                    Your wallet may show a security warning first, since it&apos;s a direct SOL deposit to a new
+                    program address. That&apos;s expected on a devnet app, not a sign anything is wrong.
                   </p>
                 </CardContent>
               </Card>
@@ -368,8 +408,8 @@ export function TrustactFeature() {
                   <div className="flex items-center gap-2 text-sm font-medium text-violet-500">
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
                     {round.resolutionKind === 'majority'
-                      ? `Majority resolved: ${round.payment.totalAmountSol} SOL split across ${round.payment.recipients.length} correct verifier${round.payment.recipients.length === 1 ? '' : 's'}`
-                      : `${round.resolutionKind === 'solo' ? 'Solo answer' : round.resolutionKind === 'tie' ? 'No clear majority' : 'Unanimous'}, stakes returned with no platform cut`}
+                      ? `Majority resolved: ${round.payment.totalAmountSol} SOL split by speed across ${round.payment.recipients.length} correct verifier${round.payment.recipients.length === 1 ? '' : 's'}`
+                      : `${round.resolutionKind === 'solo' ? 'Solo answer' : round.resolutionKind === 'tie' ? 'No clear majority' : 'Unanimous'}, full pool split by speed with no platform cut`}
                   </div>
                   <p className="rounded-md bg-black/20 p-2 font-mono text-xs break-all text-muted-foreground">
                     {round.payment.signature}

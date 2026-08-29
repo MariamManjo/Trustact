@@ -2,13 +2,13 @@ import {
   cachePayout,
   claimForSettlement,
   computeConsensus,
-  getStakePoolLamports,
+  computeSpeedWeights,
+  getPoolLamports,
   recordJudgments,
-  STAKE_LAMPORTS,
   PLATFORM_CUT_RATE,
   type VerificationRound,
 } from './verification-rounds'
-import { releaseMultiVerificationPayment } from './solana-pay'
+import { releaseEscrowPayout } from './escrow-pay'
 import { recordJudgment } from './reputation'
 import { calculatePoints, totalPoints } from './reputation-points'
 
@@ -17,11 +17,10 @@ import { calculatePoints, totalPoints } from './reputation-points'
  * no asker, no self-interested judge. Resolution is majority consensus among
  * the answers themselves:
  *
- *  - solo / unanimous / tie → push: every verifier's stake is returned,
- *    Trustact takes nothing (nothing was actually resolved competitively).
- *  - a real majority → the minority's stakes fund the majority's payout,
- *    minus PLATFORM_CUT_RATE, split evenly (all stakes are equal, so an even
- *    split among the correct wallets is the correct parimutuel result).
+ *  - solo / unanimous / tie → push: the whole pool splits by speed with no
+ *    platform cut (nothing was actually resolved competitively).
+ *  - a real majority → correct answerers split the pool minus
+ *    PLATFORM_CUT_RATE, weighted by how fast each one answered.
  *
  * Guarded by claimForSettlement's 'judging' -> 'settling' flip so two
  * concurrent callers (e.g. two people polling the same round at once) can't
@@ -43,21 +42,25 @@ export async function settleRound(round: VerificationRound): Promise<Verificatio
 /**
  * Pays out a round that's already been consensus-judged (`resolutionKind` +
  * per-answer `.judgment` set) but isn't resolved yet — either the tail end
- * of settleRound, or a retry after a prior SOL transfer threw (e.g. a
+ * of settleRound, or a retry after a prior payout transaction threw (e.g. a
  * devnet RPC hiccup). Never re-judges, so a retry can't flip the outcome.
  */
 export async function payoutJudgedRound(judged: VerificationRound): Promise<VerificationRound> {
-  const pool = getStakePoolLamports(judged)
-  const correctWallets = judged.answers.filter((a) => a.judgment === 'correct').map((a) => a.verifierWallet)
+  const pool = getPoolLamports(judged)
+  const correct = judged.answers.filter((a) => a.judgment === 'correct')
 
-  // Push: refund exactly what was staked. Even split of the full pool across
-  // every answerer equals each getting STAKE_LAMPORTS back, since stakes are
-  // fixed and equal.
   const isPush = judged.resolutionKind !== 'majority'
-  const recipients = isPush ? judged.answers.map((a) => a.verifierWallet) : correctWallets
-  const totalLamports = isPush ? pool : Math.floor(pool * (1 - PLATFORM_CUT_RATE))
+  const totalToSplit = isPush ? pool : Math.floor(pool * (1 - PLATFORM_CUT_RATE))
 
-  const payment = await releaseMultiVerificationPayment(recipients, totalLamports)
+  const weights = computeSpeedWeights(correct, judged)
+  const weightSum = Object.values(weights).reduce((sum, w) => sum + w, 0)
+
+  const recipients = correct.map((a) => ({
+    wallet: a.verifierWallet,
+    lamports: Math.floor((weights[a.verifierWallet] / weightSum) * totalToSplit),
+  }))
+
+  const payment = await releaseEscrowPayout(judged.id, recipients)
 
   const pointsAwards: NonNullable<VerificationRound['points']> = {}
   for (const answer of judged.answers) {
@@ -77,6 +80,3 @@ export async function payoutJudgedRound(judged: VerificationRound): Promise<Veri
 
   return cachePayout(judged.id, payment, pointsAwards)
 }
-
-/** Re-exported so callers that already import STAKE_LAMPORTS from here keep working. */
-export { STAKE_LAMPORTS }

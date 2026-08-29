@@ -7,11 +7,11 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 const HOW_IT_WORKS = [
   {
     title: 'Ask, starting at $1',
-    body: 'A question opens with a small stake pool. Free to post, and the pool grows as people answer.',
+    body: 'Post your question with a small SOL deposit. That deposit is the whole pool the right answer splits.',
   },
   {
-    title: 'Answer correctly, split the pool',
-    body: 'Everyone who gets it right splits the money the wrong answers staked. The faster you answer, the bigger your share.',
+    title: 'Answer fast, answer right',
+    body: 'Up to 5 people answer for free. Whoever gets it right splits the pool, the faster you answer, the bigger your share.',
   },
   {
     title: 'Solana pays out in seconds',

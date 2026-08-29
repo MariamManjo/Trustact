@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useConnection, useWallet } from '@solana/wallet-adapter-react'
-import { LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
+import { useWallet } from '@solana/wallet-adapter-react'
+import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { motion } from 'framer-motion'
 import { Camera, CheckCircle2, MapPin, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -10,18 +10,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ConnectWalletModal } from './connect-wallet-modal'
 import { CameraCapture } from './camera-capture'
 import { LocationMap } from './location-map'
-import {
-  useOpenRounds,
-  useReputation,
-  useSubmitAnswer,
-  useTreasuryAddress,
-  type OpenRoundSummary,
-} from './rounds-data-access'
+import { useOpenRounds, useReputation, useSubmitAnswer, type OpenRoundSummary } from './rounds-data-access'
 
 function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
-  const { connected, publicKey, sendTransaction } = useWallet()
-  const { connection } = useConnection()
-  const { data: treasuryAddress } = useTreasuryAddress()
+  const { connected, publicKey } = useWallet()
   const [selected, setSelected] = useState<'yes' | 'no' | null>(null)
   const [note, setNote] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
@@ -29,9 +21,6 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
   const [locationError, setLocationError] = useState<string | null>(null)
   const [locating, setLocating] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [staking, setStaking] = useState(false)
-  const [stakePhase, setStakePhase] = useState<'signing' | 'confirming' | 'submitting' | null>(null)
-  const [stakeError, setStakeError] = useState<string | null>(null)
   const submitAnswer = useSubmitAnswer()
 
   const { photoRequired, locationRequired } = round.proofRequirements
@@ -70,48 +59,23 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
   }
 
   async function submit() {
-    if (!publicKey || !selected || !canSubmit || !treasuryAddress) return
-    setStakeError(null)
-    setStaking(true)
-    setStakePhase('signing')
+    if (!publicKey || !selected || !canSubmit) return
     try {
-      // Stake first, on-chain — the answer only counts once this is
-      // confirmed, so guessing costs real money instead of being free.
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: new PublicKey(treasuryAddress),
-          lamports: round.stakeLamports,
-        })
-      )
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash()
-      transaction.recentBlockhash = blockhash
-      transaction.feePayer = publicKey
-
-      const signature = await sendTransaction(transaction, connection)
-      setStakePhase('confirming')
-      await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed')
-
-      setStakePhase('submitting')
       await submitAnswer.mutateAsync({
         roundId: round.id,
         verifierWallet: publicKey.toBase58(),
         answer: selected,
-        stakeSignature: signature,
         note: note.trim() || undefined,
         photo: photo ?? undefined,
         location: location ?? undefined,
       })
       setSubmitted(true)
-    } catch (err) {
-      setStakeError(err instanceof Error ? err.message : 'Stake transaction failed. Try again.')
-    } finally {
-      setStaking(false)
-      setStakePhase(null)
+    } catch {
+      // submitAnswer.error already surfaces the message below.
     }
   }
 
-  const stakeSol = round.stakeLamports / LAMPORTS_PER_SOL
+  const poolSol = round.poolLamports / LAMPORTS_PER_SOL
 
   return (
     <Card className="py-4">
@@ -124,7 +88,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
         </div>
         <p className="text-xs text-muted-foreground">{round.action}</p>
         <p className="text-xs text-muted-foreground">
-          Stake {stakeSol} SOL on your answer. Wrong answers fund correct ones, no self-judging
+          {poolSol} SOL pool. Answer for free, correct and fastest answers split it, no self-judging.
         </p>
 
         {(photoRequired || locationRequired) && (
@@ -145,7 +109,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
         {submitted ? (
           <div className="flex items-center gap-2 text-sm font-medium text-violet-500">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
-            Staked and answered. Resolves by consensus, no one judges their own round.
+            Answered. Resolves by consensus, no one judges their own round.
           </div>
         ) : !connected ? (
           <ConnectPrompt />
@@ -156,7 +120,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
             <div className="flex gap-2">
               <button
                 onClick={() => setSelected('yes')}
-                disabled={staking}
+                disabled={submitAnswer.isPending}
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
                   selected === 'yes' ? 'bg-violet-500 text-white' : 'bg-white/5 text-muted-foreground hover:bg-white/10'
                 }`}
@@ -165,7 +129,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
               </button>
               <button
                 onClick={() => setSelected('no')}
-                disabled={staking}
+                disabled={submitAnswer.isPending}
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
                   selected === 'no' ? 'bg-red-500/80 text-white' : 'bg-white/5 text-muted-foreground hover:bg-white/10'
                 }`}
@@ -196,35 +160,20 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              disabled={staking}
+              disabled={submitAnswer.isPending}
               placeholder="Optional note for the asker"
               className="min-h-16 w-full resize-none rounded-md border border-white/10 bg-black/20 p-2 text-xs placeholder:text-muted-foreground/60 focus:border-violet-500/40 focus:outline-none disabled:opacity-50"
             />
-            <p className="text-xs text-muted-foreground/70">
-              Your wallet may show a security warning before this, since it&apos;s a direct SOL
-              transfer to a new address. That&apos;s expected on a devnet app, not a sign anything is
-              wrong. Choose &quot;Proceed anyway&quot; to continue.
-            </p>
-            {(stakeError || submitAnswer.error) && (
-              <p className="text-xs text-red-400">
-                {stakeError ?? (submitAnswer.error as Error).message}
-              </p>
+            {submitAnswer.error && (
+              <p className="text-xs text-red-400">{(submitAnswer.error as Error).message}</p>
             )}
             <Button
               size="sm"
-              disabled={!canSubmit || !treasuryAddress || staking || submitAnswer.isPending}
+              disabled={!canSubmit || submitAnswer.isPending}
               onClick={submit}
               className="h-9 w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-xs font-medium text-white hover:from-violet-400 hover:to-fuchsia-400 disabled:opacity-50"
             >
-              {stakePhase === 'signing'
-                ? 'Confirm in your wallet…'
-                : stakePhase === 'confirming'
-                  ? 'Confirming stake…'
-                  : stakePhase === 'submitting' || submitAnswer.isPending
-                    ? 'Submitting answer…'
-                    : !treasuryAddress
-                      ? 'Loading…'
-                      : `Stake ${stakeSol} SOL & answer`}
+              {submitAnswer.isPending ? 'Submitting answer…' : 'Submit answer'}
             </Button>
           </div>
         )}
@@ -282,7 +231,7 @@ export function VerifyFeedFeature() {
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-violet-500">Verify</h1>
           <p className="text-sm text-muted-foreground">
-            Real questions, free to post. Stake on your answer, resolved by consensus and paid in seconds.
+            Real questions with a real pool. Answer for free, resolved by consensus and paid in seconds.
           </p>
         </div>
         <ReputationBadge />

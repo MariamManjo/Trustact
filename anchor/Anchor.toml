@@ -5,12 +5,12 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-basic = "JAVuBXeBZqXNtS73azhBDAoYaaAFfo4gWXoZe2e7Jf8H"
+[programs.devnet]
+trustact_escrow = "592wks1UXnk4arVMb3N8S7xcu2dgKp8LiGFNHheVap7N"
 
 [provider]
-cluster = "localnet"
-wallet = "~/.config/solana/id.json"
+cluster = "devnet"
+wallet = "../.wallets/payer.json"
 
 [scripts]
 test = "../node_modules/.bin/jest --preset ts-jest"

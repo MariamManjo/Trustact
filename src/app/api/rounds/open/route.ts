@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { listOpenRounds, STAKE_LAMPORTS } from '@/lib/verification-rounds'
+import { listOpenRounds } from '@/lib/verification-rounds'
 
 /** GET /api/rounds/open — lightweight feed of rounds still collecting answers. */
 export async function GET() {
@@ -12,7 +12,7 @@ export async function GET() {
         action: r.action,
         proofRequirements: r.proofRequirements,
         askerWallet: r.askerWallet,
-        stakeLamports: STAKE_LAMPORTS,
+        poolLamports: r.feeLamports,
         answersCount: r.answers.length,
         closesAt: r.closesAt,
       })),
