@@ -1,10 +1,4 @@
-import { ArrowUpRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { HeroCharacter } from './hero-character'
-
-function scrollToForm() {
-  document.getElementById('agent-action-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return <p className="mb-2 text-xs font-semibold tracking-wider text-violet-400 uppercase">{children}</p>
@@ -58,17 +52,6 @@ export function LandingPitch() {
           ))}
         </div>
       </section>
-
-      {/* Action */}
-      <div className="flex justify-center">
-        <Button
-          onClick={scrollToForm}
-          size="sm"
-          className="h-11 w-[240px] max-w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 font-medium text-white hover:from-violet-400 hover:to-fuchsia-400"
-        >
-          Try it now <ArrowUpRight className="h-4 w-4" />
-        </Button>
-      </div>
     </div>
   )
 }

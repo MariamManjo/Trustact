@@ -53,23 +53,6 @@ export function ClusterChecker({ children }: { children: ReactNode }) {
   return children
 }
 
-/**
- * Quiet, non-interactive status text — not a button. This product only ever
- * runs on devnet in practice; a full network-switcher control next to
- * "Sign in" implied a real choice end users don't actually have, and
- * competed with it for attention. The interactive ClusterUiSelect dropdown
- * below still exists for anywhere that genuinely needs to switch clusters.
- */
-export function NetworkBadge() {
-  const { cluster } = useCluster()
-  return (
-    <span className="flex items-center gap-1.5 text-xs text-neutral-500">
-      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-      {cluster.name}
-    </span>
-  )
-}
-
 /** `block`: fills the width with a flat h-10 shape, matching the mobile menu's nav rows instead of the header's pill. */
 export function ClusterUiSelect({ block = false }: { block?: boolean } = {}) {
   const { clusters, setCluster, cluster } = useCluster()
