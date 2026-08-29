@@ -7,6 +7,7 @@ import {
   SESSION_COOKIE,
   SESSION_TTL_SECONDS,
 } from '@/lib/auth-session'
+import { ensureProfile } from '@/lib/user-profiles'
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature.' }, { status: 401 })
     }
 
-    const sessionId = await createSession(wallet)
+    const [sessionId] = await Promise.all([createSession(wallet), ensureProfile(wallet)])
     const res = NextResponse.json({ wallet })
     res.cookies.set(SESSION_COOKIE, sessionId, {
       httpOnly: true,

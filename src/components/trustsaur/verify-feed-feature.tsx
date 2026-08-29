@@ -223,11 +223,20 @@ function historyOutcome(round: HistoryRound): { label: string; tone: 'violet' | 
   return { label: `${kind} · ${round.payment.totalAmountSol} SOL split, no platform cut`, tone: 'violet' }
 }
 
-function HistoryRoundCard({ round, viewerWallet }: { round: HistoryRound; viewerWallet?: string }) {
+function HistoryRoundCard({
+  round,
+  viewerWallet,
+  nicknames = {},
+}: {
+  round: HistoryRound
+  viewerWallet?: string
+  nicknames?: Record<string, string>
+}) {
   const outcome = historyOutcome(round)
   const isAsker = round.askerWallet === viewerWallet
   const isAnswerer = round.answers.some((a) => a.verifierWallet === viewerWallet)
-  const badgeLabel = isAsker ? 'You asked' : isAnswerer ? 'You answered' : `Asked by ${ellipsify(round.askerWallet)}`
+  const displayName = (wallet: string) => nicknames[wallet] ?? ellipsify(wallet)
+  const badgeLabel = isAsker ? 'You asked' : isAnswerer ? 'You answered' : `Asked by ${displayName(round.askerWallet)}`
   const toneClass =
     outcome.tone === 'violet'
       ? 'text-violet-500'
@@ -271,7 +280,7 @@ function HistoryRoundCard({ round, viewerWallet }: { round: HistoryRound; viewer
                   )}
                   <div className="flex-1 space-y-0.5">
                     <div className="font-medium">
-                      {a.verifierWallet === viewerWallet ? 'You' : ellipsify(a.verifierWallet)}
+                      {a.verifierWallet === viewerWallet ? 'You' : displayName(a.verifierWallet)}
                       {' answered '}
                       {a.answer}
                       {a.judgment && (
@@ -289,7 +298,7 @@ function HistoryRoundCard({ round, viewerWallet }: { round: HistoryRound; viewer
                   <div className="relative h-40 w-full overflow-hidden rounded-md">
                     <Image
                       src={a.photoUrl}
-                      alt={`Photo proof from ${ellipsify(a.verifierWallet)}`}
+                      alt={`Photo proof from ${displayName(a.verifierWallet)}`}
                       fill
                       className="object-cover"
                     />
@@ -327,7 +336,7 @@ function HistoryRoundCard({ round, viewerWallet }: { round: HistoryRound; viewer
 function HistorySection() {
   const { publicKey } = useWallet()
   const wallet = publicKey?.toBase58()
-  const { data: rounds, isLoading } = useRoundHistory(wallet)
+  const { data, isLoading } = useRoundHistory(wallet)
 
   if (!wallet) return null
   if (isLoading) {
@@ -337,14 +346,14 @@ function HistorySection() {
       </div>
     )
   }
-  if (!rounds || rounds.length === 0) return null
+  if (!data || data.rounds.length === 0) return null
 
   return (
     <div className="space-y-3">
       <h2 className="text-sm font-semibold tracking-tight text-violet-500">Your history</h2>
       <div className="space-y-3">
-        {rounds.map((round) => (
-          <HistoryRoundCard key={round.id} round={round} viewerWallet={wallet} />
+        {data.rounds.map((round) => (
+          <HistoryRoundCard key={round.id} round={round} viewerWallet={wallet} nicknames={data.nicknames} />
         ))}
       </div>
     </div>
@@ -353,7 +362,7 @@ function HistorySection() {
 
 function RecentActivitySection() {
   const { publicKey } = useWallet()
-  const { data: rounds, isLoading } = useRecentActivity()
+  const { data, isLoading } = useRecentActivity()
 
   if (isLoading) {
     return (
@@ -362,15 +371,20 @@ function RecentActivitySection() {
       </div>
     )
   }
-  if (!rounds || rounds.length === 0) return null
+  if (!data || data.rounds.length === 0) return null
 
   return (
     <div className="space-y-3">
       <h2 className="text-sm font-semibold tracking-tight text-violet-500">Recent activity</h2>
       <p className="text-xs text-muted-foreground">Every resolved question across Trustact, asked and answered by real people.</p>
       <div className="space-y-3">
-        {rounds.map((round) => (
-          <HistoryRoundCard key={round.id} round={round} viewerWallet={publicKey?.toBase58()} />
+        {data.rounds.map((round) => (
+          <HistoryRoundCard
+            key={round.id}
+            round={round}
+            viewerWallet={publicKey?.toBase58()}
+            nicknames={data.nicknames}
+          />
         ))}
       </div>
     </div>

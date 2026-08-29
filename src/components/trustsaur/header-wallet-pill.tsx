@@ -4,11 +4,13 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { LAMPORTS_PER_SOL } from '@solana/web3.js'
-import { ChevronDown, Copy, ExternalLink, LogOut } from 'lucide-react'
+import { ChevronDown, Copy, ExternalLink, LogOut, UserPen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ConnectWalletModal } from './connect-wallet-modal'
+import { EditProfileModal } from './edit-profile-modal'
 import { useSignOut } from './auth-session-data-access'
+import { useProfile } from './profile-data-access'
 import { useGetBalance } from '@/components/account/account-data-access'
 
 function formatSol(lamports: number): string {
@@ -24,6 +26,7 @@ export function HeaderWalletPill({ block = false }: { block?: boolean }) {
   const { publicKey, connected, disconnect } = useWallet()
   const signOut = useSignOut()
   const [modalOpen, setModalOpen] = useState(false)
+  const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
   // Same hook, same queryKey, as the Account page — one shared cache so the
@@ -34,6 +37,7 @@ export function HeaderWalletPill({ block = false }: { block?: boolean }) {
 
   const address = publicKey?.toBase58()
   const disconnected = !connected || !publicKey || !address
+  const { data: profile } = useProfile(address)
 
   async function copyAddress() {
     if (!address) return
@@ -82,12 +86,18 @@ export function HeaderWalletPill({ block = false }: { block?: boolean }) {
               <span className="flex items-center gap-1.5 rounded-full bg-white/5 py-0.5 pr-2 pl-1.5">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
                 <Image src="/mascot.png" alt="" width={20} height={20} className="h-5 w-5 object-contain" />
-                <span className="font-mono text-xs text-muted-foreground">{ellipsify(address)}</span>
+                <span className={profile?.nickname ? 'text-xs font-medium' : 'font-mono text-xs text-muted-foreground'}>
+                  {profile?.nickname || ellipsify(address)}
+                </span>
               </span>
               <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={() => setProfileModalOpen(true)}>
+              <UserPen className="h-4 w-4" />
+              Edit profile
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={copyAddress}>
               <Copy className="h-4 w-4" />
               {copied ? 'Copied' : 'Copy address'}
@@ -110,6 +120,7 @@ export function HeaderWalletPill({ block = false }: { block?: boolean }) {
         </DropdownMenu>
       )}
       <ConnectWalletModal open={modalOpen} onOpenChange={setModalOpen} />
+      {address && <EditProfileModal wallet={address} open={profileModalOpen} onOpenChange={setProfileModalOpen} />}
     </>
   )
 }

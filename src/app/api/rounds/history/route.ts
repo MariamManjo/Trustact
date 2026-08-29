@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listWalletHistory } from '@/lib/verification-rounds'
+import { getProfiles } from '@/lib/user-profiles'
 
 /**
  * GET /api/rounds/history?wallet=...
@@ -16,5 +17,13 @@ export async function GET(req: NextRequest) {
   }
 
   const rounds = await listWalletHistory(wallet)
-  return NextResponse.json({ rounds })
+  const wallets = rounds.flatMap((r) => [r.askerWallet, ...r.answers.map((a) => a.verifierWallet)])
+  const profiles = await getProfiles(wallets)
+  const nicknames = Object.fromEntries(
+    Object.entries(profiles)
+      .filter(([, p]) => p.nickname)
+      .map(([w, p]) => [w, p.nickname])
+  )
+
+  return NextResponse.json({ rounds, nicknames })
 }

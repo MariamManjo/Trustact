@@ -77,14 +77,19 @@ export interface HistoryRound {
   createdAt: number
 }
 
+export interface HistoryResponse {
+  rounds: HistoryRound[]
+  nicknames: Record<string, string>
+}
+
 export function useRoundHistory(wallet: string | undefined) {
   return useQuery({
     queryKey: ['rounds-history', wallet],
-    queryFn: async (): Promise<HistoryRound[]> => {
+    queryFn: async (): Promise<HistoryResponse> => {
       const res = await fetch(`/api/rounds/history?wallet=${wallet}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to load history.')
-      return data.rounds
+      return data
     },
     enabled: Boolean(wallet),
     refetchInterval: 5000,
@@ -94,11 +99,11 @@ export function useRoundHistory(wallet: string | undefined) {
 export function useRecentActivity() {
   return useQuery({
     queryKey: ['rounds-activity'],
-    queryFn: async (): Promise<HistoryRound[]> => {
+    queryFn: async (): Promise<HistoryResponse> => {
       const res = await fetch('/api/rounds/activity')
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to load activity.')
-      return data.rounds
+      return data
     },
     refetchInterval: 8000,
   })
