@@ -31,6 +31,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
   const [locationError, setLocationError] = useState<string | null>(null)
   const [locating, setLocating] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [alreadyAnswered, setAlreadyAnswered] = useState(false)
   const submitAnswer = useSubmitAnswer()
 
   const { photoRequired, locationRequired } = round.proofRequirements
@@ -80,8 +81,14 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
         location: location ?? undefined,
       })
       setSubmitted(true)
-    } catch {
-      // submitAnswer.error already surfaces the message below.
+    } catch (err) {
+      // Permanent for this wallet+round — retrying just repeats the same
+      // 400 forever, so stop showing an active form instead of leaving the
+      // error message next to a Submit button that can never succeed.
+      if (err instanceof Error && err.message.toLowerCase().includes('already answered')) {
+        setAlreadyAnswered(true)
+      }
+      // Otherwise submitAnswer.error already surfaces the message below.
     }
   }
 
@@ -118,10 +125,12 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
           </div>
         )}
 
-        {submitted ? (
+        {submitted || alreadyAnswered ? (
           <div className="flex items-center gap-2 text-sm font-medium text-violet-500">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
-            Answered. Resolves by consensus, no one judges their own round.
+            {alreadyAnswered
+              ? "You've already answered this question."
+              : 'Answered. Resolves by consensus, no one judges their own round.'}
           </div>
         ) : !connected ? (
           <ConnectPrompt />
