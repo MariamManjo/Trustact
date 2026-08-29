@@ -50,7 +50,7 @@ export interface AnswerSubmission {
   judgment?: 'correct' | 'incorrect'
 }
 
-/** How a round's stake pool was settled, for display and for the pitch-facing "no self-interested judge" claim. */
+/** How a round's pool was settled, for display and for the pitch-facing "no self-interested judge" claim. */
 export type ResolutionKind = 'unanimous' | 'majority' | 'tie' | 'solo'
 
 /** Per-round leaderboard points — not an asset. */
@@ -112,10 +112,10 @@ export function computeSpeedWeights(
 
 /**
  * Resolves a full set of answers by consensus — no asker, no self-interested
- * judge. Unanimous and single-answer rounds are a push (everyone's stake
- * returns, no platform cut); an even split with no clear majority is also a
+ * judge. Unanimous and single-answer rounds are a push (the full pool splits
+ * by speed, no platform cut); an even split with no clear majority is also a
  * push, since there's no principled way to pick a winning side. Only a real
- * majority triggers a redistribution.
+ * majority triggers the 10% cut.
  */
 export function computeConsensus(answers: AnswerSubmission[]): {
   judgments: Record<string, 'correct' | 'incorrect'>
