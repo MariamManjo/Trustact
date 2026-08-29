@@ -79,10 +79,16 @@ export function AccountBalanceCheck({ address }: { address: PublicKey }) {
 
 export function AccountButtons({ address }: { address: PublicKey }) {
   const { cluster } = useCluster()
+  const { publicKey } = useWallet()
+  // Send debits `address` itself (see useTransferSol / createTransaction), not
+  // whichever wallet happens to be connected — showing it on someone else's
+  // account page offered a control that could only ever fail to sign.
+  const isOwnAccount = Boolean(publicKey && publicKey.equals(address))
+
   return (
     <div className="flex flex-wrap items-center justify-center gap-2">
       {cluster.network?.includes('mainnet') ? null : <ModalAirdrop address={address} />}
-      <ModalSend address={address} />
+      {isOwnAccount && <ModalSend address={address} />}
       <ModalReceive address={address} />
     </div>
   )
