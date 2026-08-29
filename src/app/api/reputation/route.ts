@@ -26,7 +26,11 @@ export async function GET(req: NextRequest) {
       ...reputation,
       tier: tierFor(reputation.correct),
       asked: counts.asked,
-      answered: counts.answered,
+      // The wallet->round answered-index is forward-only (added after
+      // reputation tracking already existed), so it can undercount versus
+      // judged answers from before it shipped — never show fewer answered
+      // than correct+incorrect, since every judged answer was answered.
+      answered: Math.max(counts.answered, reputation.correct + reputation.incorrect),
       earnedSol,
     })
   } catch (err) {
