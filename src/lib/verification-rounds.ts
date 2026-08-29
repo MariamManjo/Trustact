@@ -309,6 +309,30 @@ export async function listOpenRounds(): Promise<VerificationRound[]> {
 }
 
 /**
+ * Lifetime asked/answered counts for `wallet`, including still-open rounds
+ * (unlike listWalletHistory, which only covers resolved/expired ones) —
+ * for profile stats where "you asked 1 question" shouldn't read as 0 just
+ * because it hasn't settled yet. Just set cardinality, no round bodies.
+ */
+export async function getWalletActivityCounts(wallet: string): Promise<{ asked: number; answered: number }> {
+  const redis = getRedis()
+  if (redis) {
+    const [asked, answered] = await Promise.all([
+      redis.scard(WALLET_ASKED_PREFIX + wallet),
+      redis.scard(WALLET_ANSWERED_PREFIX + wallet),
+    ])
+    return { asked, answered }
+  }
+
+  const store = loadFileStore()
+  const rounds = Object.values(store)
+  return {
+    asked: rounds.filter((r) => r.askerWallet === wallet).length,
+    answered: rounds.filter((r) => r.answers.some((a) => a.verifierWallet === wallet)).length,
+  }
+}
+
+/**
  * Every non-open round `wallet` was involved in, as asker or verifier —
  * newest first. Unlike `listOpenRounds`, these are otherwise undiscoverable
  * once a round leaves 'collecting': it's dropped from OPEN_ROUNDS_SET and

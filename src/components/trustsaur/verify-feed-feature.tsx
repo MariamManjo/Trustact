@@ -9,9 +9,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ellipsify, formatTimeRemaining } from '@/lib/utils'
 import { ConnectWalletModal } from './connect-wallet-modal'
+import { EditProfileModal } from './edit-profile-modal'
 import { CameraCapture } from './camera-capture'
 import { LocationMap } from './location-map'
 import { useVerifierIdentity } from './verifier-identity'
+import { useProfile } from './profile-data-access'
 import {
   useOpenRounds,
   useRecentActivity,
@@ -407,25 +409,55 @@ function ConnectPrompt() {
   )
 }
 
-function ReputationBadge() {
+function ProfileCard() {
   const { publicKey } = useVerifierIdentity()
   const { data, isLoading } = useReputation(publicKey ?? undefined)
+  const { data: profile } = useProfile(publicKey ?? undefined)
+  const [editOpen, setEditOpen] = useState(false)
 
   if (!publicKey) return null
   if (isLoading) {
-    return <div className="h-9 animate-pulse rounded-lg border border-white/10 bg-white/5" />
+    return <div className="h-24 animate-pulse rounded-lg border border-white/10 bg-white/5" />
   }
   if (!data) return null
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs">
-      <span className="rounded-full bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 px-2 py-0.5 font-medium text-violet-300">
-        {data.tier.name}
-      </span>
-      <span className="text-muted-foreground">
-        {data.correct} correct · {data.incorrect} incorrect · {Math.round(data.accuracy * 100)}% accuracy
-      </span>
-      <span className="text-muted-foreground">{data.points} pts</span>
+    <div className="space-y-3 rounded-lg border border-white/10 bg-black/20 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold">{profile?.nickname || ellipsify(publicKey)}</span>
+        <span className="rounded-full bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 px-2 py-0.5 text-xs font-medium text-violet-300">
+          {data.tier.name}
+        </span>
+        <button
+          onClick={() => setEditOpen(true)}
+          className="text-xs text-violet-400 underline-offset-2 hover:underline"
+        >
+          {profile?.nickname ? 'Edit' : 'Set a nickname'}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
+        <div>
+          <div className="text-lg font-semibold">{data.asked}</div>
+          <div className="text-[11px] text-muted-foreground">asked</div>
+        </div>
+        <div>
+          <div className="text-lg font-semibold">{data.answered}</div>
+          <div className="text-[11px] text-muted-foreground">answered</div>
+        </div>
+        <div>
+          <div className="text-lg font-semibold">{data.earnedSol.toFixed(3)}</div>
+          <div className="text-[11px] text-muted-foreground">SOL earned</div>
+        </div>
+        <div>
+          <div className="text-lg font-semibold">{Math.round(data.accuracy * 100)}%</div>
+          <div className="text-[11px] text-muted-foreground">
+            accuracy · {data.points} pts
+          </div>
+        </div>
+      </div>
+
+      <EditProfileModal wallet={publicKey} open={editOpen} onOpenChange={setEditOpen} />
     </div>
   )
 }
@@ -442,7 +474,7 @@ export function VerifyFeedFeature() {
             Real questions with a real pool. Answer for free, resolved by consensus and paid in seconds.
           </p>
         </div>
-        <ReputationBadge />
+        <ProfileCard />
       </div>
 
       {isLoading && (

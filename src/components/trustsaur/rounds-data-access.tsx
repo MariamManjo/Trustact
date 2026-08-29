@@ -31,6 +31,9 @@ export interface ReputationSummary {
   incorrect: number
   accuracy: number
   points: number
+  asked: number
+  answered: number
+  earnedSol: number
   tier: { tier: string; name: string; minCorrect: number; avatarUnlocked: boolean }
 }
 

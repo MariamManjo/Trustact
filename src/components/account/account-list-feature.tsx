@@ -1,18 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { useWallet } from '@solana/wallet-adapter-react'
 import { redirect } from 'next/navigation'
 import { Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConnectWalletModal } from '@/components/trustsaur/connect-wallet-modal'
+import { useVerifierIdentity } from '@/components/trustsaur/verifier-identity'
 
 export default function AccountListFeature() {
-  const { publicKey } = useWallet()
+  const { publicKey } = useVerifierIdentity()
   const [open, setOpen] = useState(false)
 
   if (publicKey) {
-    return redirect(`/account/${publicKey.toString()}`)
+    return redirect(`/account/${publicKey}`)
   }
 
   return (
