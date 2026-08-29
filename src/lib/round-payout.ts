@@ -13,25 +13,33 @@ import { recordJudgment } from './reputation'
 import { calculatePoints, totalPoints } from './reputation-points'
 
 /**
- * Settles a round that just became 'judging' (full, or its window passed) —
- * no asker, no self-interested judge. Resolution is majority consensus among
+ * Settles a round that just became 'judging' (full, or its window passed
+ * with at least one answer) or 'expired' (window passed, zero answers) — no
+ * asker, no self-interested judge. Resolution is majority consensus among
  * the answers themselves:
  *
+ *  - zero answers → refund: the asker's whole deposit goes back to them,
+ *    nobody showed up to verify anything.
  *  - solo / unanimous / tie → push: the whole pool splits by speed with no
  *    platform cut (nothing was actually resolved competitively).
  *  - a real majority → correct answerers split the pool minus
  *    PLATFORM_CUT_RATE, weighted by how fast each one answered.
  *
- * Guarded by claimForSettlement's 'judging' -> 'settling' flip so two
- * concurrent callers (e.g. two people polling the same round at once) can't
- * both trigger a payout for it. Safe to call speculatively — returns the
- * round unchanged if it wasn't actually ready.
+ * Guarded by claimForSettlement's -> 'settling' flip so two concurrent
+ * callers (e.g. two people polling the same round at once) can't both
+ * trigger a payout for it. Safe to call speculatively — returns the round
+ * unchanged if it wasn't actually ready.
  */
 export async function settleRound(round: VerificationRound): Promise<VerificationRound> {
-  if (round.status !== 'judging') return round
+  if (round.status !== 'judging' && round.status !== 'expired') return round
 
   const claimed = await claimForSettlement(round.id)
   if (!claimed) return round // someone else already claimed it
+
+  if (claimed.answers.length === 0) {
+    const judged = await recordJudgments(claimed.id, {}, 'refund')
+    return payoutJudgedRound(judged)
+  }
 
   const { judgments, resolutionKind } = computeConsensus(claimed.answers)
   const judged = await recordJudgments(claimed.id, judgments, resolutionKind)
@@ -46,6 +54,13 @@ export async function settleRound(round: VerificationRound): Promise<Verificatio
  * devnet RPC hiccup). Never re-judges, so a retry can't flip the outcome.
  */
 export async function payoutJudgedRound(judged: VerificationRound): Promise<VerificationRound> {
+  if (judged.resolutionKind === 'refund') {
+    const payment = await releaseEscrowPayout(judged.id, [
+      { wallet: judged.askerWallet, lamports: getPoolLamports(judged) },
+    ])
+    return cachePayout(judged.id, payment, {})
+  }
+
   const pool = getPoolLamports(judged)
   const correct = judged.answers.filter((a) => a.judgment === 'correct')
 

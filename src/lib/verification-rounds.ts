@@ -51,7 +51,7 @@ export interface AnswerSubmission {
 }
 
 /** How a round's pool was settled, for display and for the pitch-facing "no self-interested judge" claim. */
-export type ResolutionKind = 'unanimous' | 'majority' | 'tie' | 'solo'
+export type ResolutionKind = 'unanimous' | 'majority' | 'tie' | 'solo' | 'refund'
 
 /** Per-round leaderboard points — not an asset. */
 export interface PointsAwardRecord {
@@ -313,14 +313,17 @@ export async function submitAnswer(
 }
 
 /**
- * Claims a 'judging' round for settlement by flipping it to 'settling'
- * before any on-chain payout call — a cheap, non-transactional guard against
- * two concurrent requests both trying to pay out the same round. Returns
- * null if the round wasn't in 'judging' (already claimed, or not ready).
+ * Claims a 'judging' or 'expired' round for settlement by flipping it to
+ * 'settling' before any on-chain payout call — a cheap, non-transactional
+ * guard against two concurrent requests both trying to pay out (or refund)
+ * the same round. 'expired' (zero answers, window passed) is claimable too
+ * so the asker's deposit gets refunded instead of stranded in the vault
+ * forever. Returns null if the round wasn't in either state (already
+ * claimed, or not ready).
  */
 export async function claimForSettlement(id: string): Promise<VerificationRound | null> {
   const round = await getRound(id)
-  if (!round || round.status !== 'judging') return null
+  if (!round || (round.status !== 'judging' && round.status !== 'expired')) return null
   const updated: VerificationRound = { ...round, status: 'settling' }
   await persistRound(updated)
   return updated

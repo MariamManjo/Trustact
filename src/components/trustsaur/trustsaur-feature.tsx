@@ -74,7 +74,7 @@ interface RoundPayment {
   recipients: { wallet: string; amountSol: number }[]
 }
 
-type ResolutionKind = 'unanimous' | 'majority' | 'tie' | 'solo'
+type ResolutionKind = 'unanimous' | 'majority' | 'tie' | 'solo' | 'refund'
 
 interface Round {
   id: string
@@ -135,7 +135,8 @@ export function TrustactFeature() {
           stopPolling()
           setStage('resolved')
         } else if (data.status === 'expired') {
-          stopPolling()
+          // Transient — the backend refunds the asker's deposit automatically
+          // on the next read of an expired round, so keep polling for that.
           setStage('expired')
         }
       } catch {
@@ -395,7 +396,9 @@ export function TrustactFeature() {
                     <Clock className="h-4 w-4 shrink-0" />
                     Nobody answered in time
                   </p>
-                  <p className="text-xs text-muted-foreground">Try asking again, verifier availability varies.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Refunding your deposit now, verifier availability varies. This closes out automatically.
+                  </p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -409,7 +412,9 @@ export function TrustactFeature() {
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
                     {round.resolutionKind === 'majority'
                       ? `Majority resolved: ${round.payment.totalAmountSol} SOL split by speed across ${round.payment.recipients.length} correct verifier${round.payment.recipients.length === 1 ? '' : 's'}`
-                      : `${round.resolutionKind === 'solo' ? 'Solo answer' : round.resolutionKind === 'tie' ? 'No clear majority' : 'Unanimous'}, full pool split by speed with no platform cut`}
+                      : round.resolutionKind === 'refund'
+                        ? `Nobody answered in time — your ${round.payment.totalAmountSol} SOL deposit was refunded`
+                        : `${round.resolutionKind === 'solo' ? 'Solo answer' : round.resolutionKind === 'tie' ? 'No clear majority' : 'Unanimous'}, full pool split by speed with no platform cut`}
                   </div>
                   <p className="rounded-md bg-black/20 p-2 font-mono text-xs break-all text-muted-foreground">
                     {round.payment.signature}

@@ -8,10 +8,11 @@ import { settleRound } from '@/lib/round-payout'
  * header: Authorization: Bearer <AGENT_API_KEY>
  *
  * { status: "pending" }                          — still collecting answers
- * { status: "settling" }                         — full/closed, resolving by consensus right now
- * { status: "expired" }                          — window closed with zero answers
+ * { status: "settling" }                         — full/closed, resolving (or refunding) right now
+ * { status: "expired" }                          — window closed with zero answers, refund in flight
  * { status: "declined" }                         — resolved, payout failed or nothing to pay (rare)
- * { status: "approved", payment, points }         — resolved, correct verifiers (or a push refund) paid
+ * { status: "approved", payment, points }         — resolved: correct verifiers paid, a push refund,
+ *                                                    or (zero answers) the asker's deposit refunded
  */
 export async function GET(req: NextRequest) {
   const authError = requireAgentApiKey(req)
@@ -31,12 +32,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ status: 'pending' })
   }
 
-  if (round.status === 'expired') {
-    return NextResponse.json({ status: 'expired' })
+  if (round.status === 'judging' || round.status === 'expired') {
+    round = await settleRound(round)
   }
 
-  if (round.status === 'judging') {
-    round = await settleRound(round)
+  if (round.status === 'expired') {
+    return NextResponse.json({ status: 'expired' })
   }
 
   if (round.status === 'settling') {
