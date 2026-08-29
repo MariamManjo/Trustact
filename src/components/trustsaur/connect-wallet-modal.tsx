@@ -11,6 +11,7 @@ import {
   TrustWalletAdapter,
 } from '@solana/wallet-adapter-wallets'
 import { ArrowLeft, Backpack, ChevronRight, Search, X } from 'lucide-react'
+import { useLogin } from '@privy-io/react-auth'
 
 // Icon source only — these instances are never passed to WalletProvider, so
 // they can't affect the actual connect flow. They exist purely to read the
@@ -96,6 +97,44 @@ function walletErrorMessage(err: unknown): string {
     }
   }
   return 'Connection cancelled. Try again.'
+}
+
+/**
+ * Split out from ConnectWalletModal so its useLogin() call is only ever
+ * mounted (and therefore only ever executed) when AppPrivyProvider actually
+ * wrapped the app in a <PrivyProvider> — calling a Privy hook with no
+ * provider ancestor throws immediately. The parent only renders this when
+ * NEXT_PUBLIC_PRIVY_APP_ID is configured, so that's never an issue here.
+ */
+function GoogleSignInButton({ onStart }: { onStart: () => void }) {
+  const { login } = useLogin()
+
+  return (
+    <button
+      onClick={() => {
+        onStart()
+        login()
+      }}
+      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white text-sm font-medium text-black transition-colors hover:bg-white/90"
+    >
+      <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+        <path
+          fill="#4285F4"
+          d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.82Z"
+        />
+        <path
+          fill="#34A853"
+          d="M12 24c3.24 0 5.96-1.07 7.95-2.91l-3.88-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.09A11.998 11.998 0 0 0 12 24Z"
+        />
+        <path fill="#FBBC05" d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28V6.63H1.27A12 12 0 0 0 0 12c0 1.94.46 3.77 1.27 5.37l4-3.09Z" />
+        <path
+          fill="#EA4335"
+          d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.69 1.27 6.63l4 3.09C6.22 6.86 8.87 4.75 12 4.75Z"
+        />
+      </svg>
+      Continue with Google
+    </button>
+  )
 }
 
 function WalletIcon({ entry }: { entry: WalletEntry }) {
@@ -362,6 +401,17 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
                 </a>
                 .
               </p>
+
+              {Boolean(process.env.NEXT_PUBLIC_PRIVY_APP_ID) && (
+                <>
+                  <GoogleSignInButton onStart={() => onOpenChange(false)} />
+                  <div className="my-3 flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="h-px flex-1 bg-white/10" />
+                    or pick a wallet
+                    <div className="h-px flex-1 bg-white/10" />
+                  </div>
+                </>
+              )}
 
               <div className="relative mb-3">
                 <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { useWallet } from '@solana/wallet-adapter-react'
 import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { motion } from 'framer-motion'
 import { Camera, CheckCircle2, Clock, MapPin, ThumbsDown, ThumbsUp, XCircle } from 'lucide-react'
@@ -12,6 +11,7 @@ import { ellipsify, formatTimeRemaining } from '@/lib/utils'
 import { ConnectWalletModal } from './connect-wallet-modal'
 import { CameraCapture } from './camera-capture'
 import { LocationMap } from './location-map'
+import { useVerifierIdentity } from './verifier-identity'
 import {
   useOpenRounds,
   useRecentActivity,
@@ -23,7 +23,7 @@ import {
 } from './rounds-data-access'
 
 function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
-  const { connected, publicKey } = useWallet()
+  const { connected, publicKey } = useVerifierIdentity()
   const [selected, setSelected] = useState<'yes' | 'no' | null>(null)
   const [note, setNote] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
@@ -38,7 +38,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
   const missingPhoto = photoRequired && !photo
   const missingLocation = locationRequired && !location
   const canSubmit = Boolean(selected) && !missingPhoto && !missingLocation
-  const isOwnQuestion = Boolean(round.askerWallet && publicKey && round.askerWallet === publicKey.toBase58())
+  const isOwnQuestion = Boolean(round.askerWallet && publicKey && round.askerWallet === publicKey)
 
   function shareLocation() {
     setLocationError(null)
@@ -74,7 +74,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
     try {
       await submitAnswer.mutateAsync({
         roundId: round.id,
-        verifierWallet: publicKey.toBase58(),
+        verifierWallet: publicKey,
         answer: selected,
         note: note.trim() || undefined,
         photo: photo ?? undefined,
@@ -334,9 +334,8 @@ function HistoryRoundCard({
 }
 
 function HistorySection() {
-  const { publicKey } = useWallet()
-  const wallet = publicKey?.toBase58()
-  const { data, isLoading } = useRoundHistory(wallet)
+  const { publicKey: wallet } = useVerifierIdentity()
+  const { data, isLoading } = useRoundHistory(wallet ?? undefined)
 
   if (!wallet) return null
   if (isLoading) {
@@ -361,7 +360,7 @@ function HistorySection() {
 }
 
 function RecentActivitySection() {
-  const { publicKey } = useWallet()
+  const { publicKey } = useVerifierIdentity()
   const { data, isLoading } = useRecentActivity()
 
   if (isLoading) {
@@ -382,7 +381,7 @@ function RecentActivitySection() {
           <HistoryRoundCard
             key={round.id}
             round={round}
-            viewerWallet={publicKey?.toBase58()}
+            viewerWallet={publicKey ?? undefined}
             nicknames={data.nicknames}
           />
         ))}
@@ -409,8 +408,8 @@ function ConnectPrompt() {
 }
 
 function ReputationBadge() {
-  const { publicKey } = useWallet()
-  const { data, isLoading } = useReputation(publicKey?.toBase58())
+  const { publicKey } = useVerifierIdentity()
+  const { data, isLoading } = useReputation(publicKey ?? undefined)
 
   if (!publicKey) return null
   if (isLoading) {

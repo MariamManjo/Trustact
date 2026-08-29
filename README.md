@@ -152,6 +152,7 @@ or a round to poll:
 | Persistence | **Upstash Redis** (Vercel Marketplace) — rounds, reputation, sessions, wallet history, the public activity feed, notification subscriptions. Falls back to local JSON files with no Redis credentials configured, so local dev needs no external DB                |
 | Storage     | **Vercel Blob** — verifier-submitted photo proof                                                                                                                                                                                                                   |
 | Email       | **Resend** (Vercel Marketplace) — new-round notification emails                                                                                                                                                                                                    |
+| Auth        | **Sign-In With Solana** for connected wallets; **Privy** (Google login) for people who don't have one — creates a real embedded Solana wallet, scoped today to answering/verifying, not depositing                                                                 |
 
 ## Local setup
 
@@ -173,6 +174,7 @@ npm run dev
 | `KV_REST_API_URL` / `KV_REST_API_TOKEN`  | persistence                                               | omit for the local file-store fallback                             |
 | `BLOB_READ_WRITE_TOKEN`                  | photo proof storage                                       | Vercel Blob                                                        |
 | `RESEND_API_KEY` / `RESEND_EMAIL_DOMAIN` | notification emails                                       | omit to skip sending                                               |
+| `NEXT_PUBLIC_PRIVY_APP_ID`               | Google sign-in on `/verify`                               | omit to skip; public identifier, safe client-side                  |
 
 A payer keypair lives at `.wallets/payer.json` (gitignored) in local dev —
 the account that signs outgoing SOL transfers, refunds, and agent-funded
@@ -192,6 +194,10 @@ Read this before pointing anything real at it:
 - **History indexing is forward-only.** The per-wallet history and public
   activity feed only capture rounds created after those features shipped;
   nothing earlier is retroactively recoverable.
+- **Google-login wallets can't ask yet.** Privy's embedded wallet doesn't
+  plug into the wallet-adapter transaction-signing path this app's escrow
+  deposit uses, so it's scoped to signing in and answering/verifying for
+  now — asking a question still needs a connected wallet like Phantom.
 - **Cold-start verifier supply, Sybil resistance, and payments/KYC
   regulation** are real problems for a future company, not solved here —
   see [`PROJECT_BRIEF.md`](PROJECT_BRIEF.md) for the reasoning.

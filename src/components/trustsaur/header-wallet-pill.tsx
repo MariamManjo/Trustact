@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { LAMPORTS_PER_SOL } from '@solana/web3.js'
+import { usePrivy } from '@privy-io/react-auth'
+import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import { ChevronDown, Copy, ExternalLink, LogOut, UserPen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -11,6 +12,7 @@ import { ConnectWalletModal } from './connect-wallet-modal'
 import { EditProfileModal } from './edit-profile-modal'
 import { useSignOut } from './auth-session-data-access'
 import { useProfile } from './profile-data-access'
+import { useVerifierIdentity } from './verifier-identity'
 import { useGetBalance } from '@/components/account/account-data-access'
 
 function formatSol(lamports: number): string {
@@ -23,7 +25,9 @@ function ellipsify(address: string): string {
 
 /** `block`: fills the width with a flat h-10 shape, matching the mobile menu's nav rows instead of the header's pill. */
 export function HeaderWalletPill({ block = false }: { block?: boolean }) {
-  const { publicKey, connected, disconnect } = useWallet()
+  const { publicKey: address, connected, source } = useVerifierIdentity()
+  const { disconnect } = useWallet()
+  const { logout: privyLogout } = usePrivy()
   const signOut = useSignOut()
   const [modalOpen, setModalOpen] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
@@ -32,12 +36,11 @@ export function HeaderWalletPill({ block = false }: { block?: boolean }) {
   // Same hook, same queryKey, as the Account page — one shared cache so the
   // two never show a different number for the same wallet at the same time.
   const { data: lamports, isLoading: balanceLoading } = useGetBalance({
-    address: publicKey ?? undefined,
+    address: address ? new PublicKey(address) : undefined,
   })
 
-  const address = publicKey?.toBase58()
-  const disconnected = !connected || !publicKey || !address
-  const { data: profile } = useProfile(address)
+  const disconnected = !connected || !address
+  const { data: profile } = useProfile(address ?? undefined)
 
   async function copyAddress() {
     if (!address) return
@@ -48,7 +51,8 @@ export function HeaderWalletPill({ block = false }: { block?: boolean }) {
 
   function handleDisconnect() {
     signOut.mutate()
-    disconnect()
+    if (source === 'google') privyLogout()
+    else disconnect()
   }
 
   return (

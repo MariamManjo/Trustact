@@ -3,6 +3,7 @@
 import { ReactQueryProvider } from './react-query-provider'
 import { ClusterProvider } from '@/components/cluster/cluster-data-access'
 import { SolanaProvider } from '@/components/solana/solana-provider'
+import { AppPrivyProvider } from '@/components/solana/privy-provider'
 import React from 'react'
 
 // Theming lives in AppLayout's ThemeProvider (forced dark — see app-layout.tsx).
@@ -12,7 +13,9 @@ export function AppProviders({ children }: Readonly<{ children: React.ReactNode 
   return (
     <ReactQueryProvider>
       <ClusterProvider>
-        <SolanaProvider>{children}</SolanaProvider>
+        <AppPrivyProvider>
+          <SolanaProvider>{children}</SolanaProvider>
+        </AppPrivyProvider>
       </ClusterProvider>
     </ReactQueryProvider>
   )
