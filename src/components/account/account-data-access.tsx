@@ -103,6 +103,12 @@ export function useTransferSol({ address }: { address: PublicKey }) {
   })
 }
 
+/**
+ * Backed by our own funded payer wallet (/api/faucet), not Solana's shared
+ * public devnet faucet — that one is hit by every dApp on devnet and is
+ * frequently rate-limited/exhausted as a result. Ours is rate-limited per
+ * wallet (once a day) and per IP instead, so it stays available.
+ */
 export function useRequestAirdrop({ address }: { address: PublicKey }) {
   const { connection } = useConnection()
   const transactionToast = useTransactionToast()
@@ -110,14 +116,15 @@ export function useRequestAirdrop({ address }: { address: PublicKey }) {
 
   return useMutation({
     mutationKey: ['airdrop', { endpoint: connection.rpcEndpoint, address }],
-    mutationFn: async (amount: number = 1) => {
-      const [latestBlockhash, signature] = await Promise.all([
-        connection.getLatestBlockhash(),
-        connection.requestAirdrop(address, amount * LAMPORTS_PER_SOL),
-      ])
-
-      await connection.confirmTransaction({ signature, ...latestBlockhash }, 'confirmed')
-      return signature
+    mutationFn: async () => {
+      const res = await fetch('/api/faucet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: address.toBase58() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Faucet request failed.')
+      return data.signature as string
     },
     onSuccess: async (signature) => {
       transactionToast(signature)
@@ -131,7 +138,7 @@ export function useRequestAirdrop({ address }: { address: PublicKey }) {
       ])
     },
     onError: (error) => {
-      toast.error(`Airdrop failed: ${getErrorMessage(error)}. The public devnet faucet is often rate-limited — try again shortly.`)
+      toast.error(`Airdrop failed: ${getErrorMessage(error)}`)
     },
   })
 }

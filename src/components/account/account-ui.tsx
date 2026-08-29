@@ -64,7 +64,7 @@ export function AccountBalanceCheck({ address }: { address: PublicKey }) {
           <Button
             variant="outline"
             className="border-white/10 hover:bg-white/10"
-            onClick={() => mutation.mutateAsync(1).catch((err) => console.log(err))}
+            onClick={() => mutation.mutate()}
           >
             Request Airdrop
           </Button>
@@ -310,7 +310,6 @@ function ModalReceive({ address }: { address: PublicKey }) {
 
 function ModalAirdrop({ address }: { address: PublicKey }) {
   const mutation = useRequestAirdrop({ address })
-  const [amount, setAmount] = useState('2')
 
   return (
     <AppModal
@@ -324,21 +323,14 @@ function ModalAirdrop({ address }: { address: PublicKey }) {
           Airdrop
         </Button>
       }
-      submitDisabled={!amount || mutation.isPending}
-      submitLabel={mutation.isPending ? 'Requesting…' : 'Request Airdrop'}
-      submit={() => mutation.mutateAsync(parseFloat(amount))}
+      submitDisabled={mutation.isPending}
+      submitLabel={mutation.isPending ? 'Requesting…' : 'Request 0.05 SOL'}
+      submit={() => mutation.mutateAsync()}
     >
-      <Label htmlFor="amount">Amount</Label>
-      <Input
-        disabled={mutation.isPending}
-        id="amount"
-        min="1"
-        onChange={(e) => setAmount(e.target.value)}
-        placeholder="Amount"
-        step="any"
-        type="number"
-        value={amount}
-      />
+      <p className="text-sm text-muted-foreground">
+        Sends 0.05 devnet SOL from Trustact&apos;s own faucet — more reliable than Solana&apos;s shared public one,
+        which is often rate-limited. Limited to once per wallet per day.
+      </p>
     </AppModal>
   )
 }
