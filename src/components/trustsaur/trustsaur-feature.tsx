@@ -13,6 +13,7 @@ import { LandingPitch } from './landing-pitch'
 import { LocationMap } from './location-map'
 import { ConnectWalletModal } from './connect-wallet-modal'
 import { useDepositToRound } from './escrow-data-access'
+import { useVerifierIdentity } from './verifier-identity'
 import { WINDOW_PRESETS } from '@/lib/verification-window'
 import Link from 'next/link'
 
@@ -109,6 +110,16 @@ function formatWallet(wallet: string): string {
 
 export function TrustactFeature() {
   const { publicKey } = useWallet()
+  const { source: identitySource } = useVerifierIdentity()
+  // A Google/Privy identity can sign in and answer, but not this: asking
+  // deposits real SOL into the escrow program via wallet-adapter's
+  // sendTransaction, which Privy's embedded wallet doesn't plug into (see
+  // verifier-identity.tsx). Surfacing that plainly here, since otherwise
+  // "Connect wallet to ask" reads as actionable for someone who's already
+  // signed in with Google — clicking it just reopens a modal where
+  // "Continue with Google" appears to do nothing, because they're already
+  // logged in.
+  const signedInWithGoogleOnly = identitySource === 'google' && !publicKey
   const depositToRound = useDepositToRound()
   const [action, setAction] = useState('')
   const [photoRequired, setPhotoRequired] = useState(false)
@@ -307,7 +318,7 @@ export function TrustactFeature() {
           )}
 
           {stage === 'idle' && (
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-2">
               <Button
                 onClick={runAgent}
                 size="sm"
@@ -316,6 +327,12 @@ export function TrustactFeature() {
               >
                 {publicKey ? 'Let agent proceed' : 'Connect wallet to ask'}
               </Button>
+              {signedInWithGoogleOnly && (
+                <p className="max-w-[320px] text-center text-xs text-amber-500">
+                  You&apos;re signed in with Google, but asking needs a wallet that can sign a real deposit —
+                  connect one like Phantom to continue.
+                </p>
+              )}
               <ConnectWalletModal open={walletModalOpen} onOpenChange={setWalletModalOpen} />
             </div>
           )}
