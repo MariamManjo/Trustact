@@ -200,6 +200,11 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
               placeholder="Optional note for the asker"
               className="min-h-16 w-full resize-none rounded-md border border-white/10 bg-black/20 p-2 text-xs placeholder:text-muted-foreground/60 focus:border-violet-500/40 focus:outline-none disabled:opacity-50"
             />
+            <p className="text-xs text-muted-foreground/70">
+              Your wallet may show a security warning before this, since it&apos;s a direct SOL
+              transfer to a new address. That&apos;s expected on a devnet app, not a sign anything is
+              wrong. Choose &quot;Proceed anyway&quot; to continue.
+            </p>
             {(stakeError || submitAnswer.error) && (
               <p className="text-xs text-red-400">
                 {stakeError ?? (submitAnswer.error as Error).message}

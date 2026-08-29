@@ -22,6 +22,7 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
   const [stage, setStage] = useState<CaptureStage>('idle')
   const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
@@ -76,6 +77,7 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
     const canvas = document.createElement('canvas')
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
+    setAspectRatio(video.videoWidth / video.videoHeight)
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.drawImage(video, 0, 0)
@@ -108,7 +110,8 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
         <img
           src={previewUrl}
           alt="Captured proof"
-          className="h-40 w-full rounded-lg bg-black object-contain"
+          style={{ aspectRatio: aspectRatio ?? 4 / 3 }}
+          className="max-h-96 w-full rounded-lg bg-black object-cover"
         />
         <Button
           type="button"
@@ -127,7 +130,17 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
   if (stage === 'streaming') {
     return (
       <div className="space-y-2">
-        <video ref={videoRef} muted playsInline className="h-40 w-full rounded-lg bg-black object-contain" />
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget
+            setAspectRatio(v.videoWidth / v.videoHeight)
+          }}
+          style={{ aspectRatio: aspectRatio ?? 4 / 3 }}
+          className="max-h-96 w-full rounded-lg bg-black object-cover"
+        />
         <Button
           type="button"
           size="sm"

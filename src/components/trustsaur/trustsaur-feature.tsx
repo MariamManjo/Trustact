@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { LandingPitch } from './landing-pitch'
 import { LocationMap } from './location-map'
+import { ConnectWalletModal } from './connect-wallet-modal'
 import Link from 'next/link'
 
 function Mascot({ className = 'h-11 w-11', bounce = false }: { className?: string; bounce?: boolean }) {
@@ -104,6 +105,7 @@ export function TrustactFeature() {
   const [check, setCheck] = useState<CheckResult | null>(null)
   const [round, setRound] = useState<Round | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [walletModalOpen, setWalletModalOpen] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   function stopPolling() {
@@ -140,6 +142,10 @@ export function TrustactFeature() {
   useEffect(() => stopPolling, [])
 
   async function runAgent() {
+    if (!publicKey) {
+      setWalletModalOpen(true)
+      return
+    }
     setStage('checking')
     setError(null)
     setCheck(null)
@@ -151,7 +157,7 @@ export function TrustactFeature() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action,
-          askerWallet: publicKey?.toBase58(),
+          askerWallet: publicKey.toBase58(),
           proofRequirements: { photoRequired, locationRequired },
         }),
       })
@@ -245,8 +251,9 @@ export function TrustactFeature() {
                 disabled={!action.trim()}
                 className="h-12 w-[320px] max-w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 font-medium text-white shadow-sm hover:from-violet-400 hover:to-fuchsia-400 disabled:opacity-50"
               >
-                Let agent proceed
+                {publicKey ? 'Let agent proceed' : 'Connect wallet to ask'}
               </Button>
+              <ConnectWalletModal open={walletModalOpen} onOpenChange={setWalletModalOpen} />
             </div>
           )}
           {stage !== 'idle' && (

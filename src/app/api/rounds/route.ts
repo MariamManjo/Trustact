@@ -6,10 +6,12 @@ import { notifyNewRound } from '@/lib/notify-verifiers'
 
 /**
  * POST /api/rounds
- * body: { action: string, askerWallet?: string, proofRequirements?: { photoRequired?: boolean, locationRequired?: boolean } }
+ * body: { action: string, askerWallet: string, proofRequirements?: { photoRequired?: boolean, locationRequired?: boolean } }
  *
- * Free to post — there's no asker fee. Runs the AI gatekeeper; if human
- * verification is needed, opens a round up to 5 verifiers can answer.
+ * Free to post — there's no asker fee. Requires a connected wallet so the
+ * round has an owner (used to block that wallet from answering its own
+ * question). Runs the AI gatekeeper; if human verification is needed,
+ * opens a round up to 5 verifiers can answer.
  * Verifiers stake STAKE_LAMPORTS of their own to answer (see the answer
  * route) and the round resolves by consensus among them, not by the asker.
  */
@@ -26,6 +28,9 @@ export async function POST(req: NextRequest) {
         { error: 'Describe the action the agent wants to take first.' },
         { status: 400 }
       )
+    }
+    if (!askerWallet) {
+      return NextResponse.json({ error: 'Connect your wallet to ask a question.' }, { status: 400 })
     }
 
     const assessment = await assessAgentAction(action)
