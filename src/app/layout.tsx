@@ -15,10 +15,31 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
+const SITE_URL = 'https://trustact.manjom.works'
+const DESCRIPTION =
+  'Before an AI agent spends your money, a real person checks first. Real questions, real people, real money, settled on Solana.'
+
 export const metadata: Metadata = {
-  title: 'Trustact',
-  description:
-    'Before an AI agent spends your money, a real person checks first. Real questions, real people, real money, settled on Solana.',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'Trustact',
+    template: '%s · Trustact',
+  },
+  description: DESCRIPTION,
+  openGraph: {
+    title: 'Trustact',
+    description: DESCRIPTION,
+    url: SITE_URL,
+    siteName: 'Trustact',
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Trustact',
+    description: DESCRIPTION,
+    images: ['/og-image.png'],
+  },
 }
 
 const links: { label: string; path: string }[] = [
