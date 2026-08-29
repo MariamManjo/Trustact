@@ -81,16 +81,23 @@ function NotifySignup() {
   if (connected && !sessionLoading && !wallet) {
     return (
       <Card className="py-4">
-        <CardContent className="flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">Sign in with your wallet to turn on notifications.</p>
-          <Button
-            size="sm"
-            disabled={signIn.isPending}
-            onClick={() => signIn.mutate()}
-            className="h-9 shrink-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-xs font-medium text-white hover:from-violet-400 hover:to-fuchsia-400"
-          >
-            {signIn.isPending ? 'Check your wallet…' : 'Sign in'}
-          </Button>
+        <CardContent className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">Sign in with your wallet to turn on notifications.</p>
+            <Button
+              size="sm"
+              disabled={signIn.isPending}
+              onClick={() => signIn.mutate()}
+              className="h-9 shrink-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-xs font-medium text-white hover:from-violet-400 hover:to-fuchsia-400"
+            >
+              {signIn.isPending ? 'Check your wallet…' : 'Sign in'}
+            </Button>
+          </div>
+          {signIn.error && (
+            <p className="text-xs text-red-400">
+              {signIn.error instanceof Error ? signIn.error.message : 'Sign-in failed — try again.'}
+            </p>
+          )}
         </CardContent>
       </Card>
     )
