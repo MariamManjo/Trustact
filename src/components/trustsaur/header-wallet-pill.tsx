@@ -93,7 +93,16 @@ export function HeaderWalletPill({ block = false }: { block?: boolean }) {
               <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent
+            align="end"
+            className="w-56"
+            // Without this, the menu returns focus to its trigger as it
+            // closes at the same moment the profile Dialog opens and marks
+            // everything outside itself aria-hidden — leaving a focused
+            // element trapped inside an aria-hidden ancestor. The Dialog
+            // manages focus itself once open, so let it.
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
             <DropdownMenuItem onClick={() => setProfileModalOpen(true)}>
               <UserPen className="h-4 w-4" />
               Edit profile

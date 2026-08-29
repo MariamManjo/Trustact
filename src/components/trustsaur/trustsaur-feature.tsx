@@ -17,6 +17,10 @@ import { WINDOW_PRESETS } from '@/lib/verification-window'
 import Link from 'next/link'
 
 const FALLBACK_FEE_LAMPORTS = 0.02 * LAMPORTS_PER_SOL
+// Must match the server's own check in /api/rounds/assess — otherwise a
+// short-but-nonempty action enables this button only to get rejected with a
+// 400 the moment it's clicked.
+const MIN_ACTION_LENGTH = 5
 
 function Mascot({ className = 'h-11 w-11', bounce = false }: { className?: string; bounce?: boolean }) {
   return (
@@ -243,6 +247,10 @@ export function TrustactFeature() {
             className="min-h-24 w-full resize-none rounded-lg border border-white/10 bg-black/20 p-3 text-sm leading-relaxed transition-colors placeholder:text-muted-foreground/60 focus:border-violet-500/40 focus:outline-none focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
           />
 
+          {stage === 'idle' && action.trim().length > 0 && action.trim().length < MIN_ACTION_LENGTH && (
+            <p className="text-xs text-amber-500">A few more words — describe what the agent is about to do.</p>
+          )}
+
           {stage === 'idle' && (
             <p className="text-xs text-muted-foreground">
               Costs a small SOL deposit to ask, starting around $1. That deposit is the pool. Up to 5 people
@@ -303,7 +311,7 @@ export function TrustactFeature() {
               <Button
                 onClick={runAgent}
                 size="sm"
-                disabled={!action.trim()}
+                disabled={action.trim().length < MIN_ACTION_LENGTH}
                 className="h-12 w-[320px] max-w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 font-medium text-white shadow-sm hover:from-violet-400 hover:to-fuchsia-400 disabled:opacity-50"
               >
                 {publicKey ? 'Let agent proceed' : 'Connect wallet to ask'}
