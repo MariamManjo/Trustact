@@ -16,6 +16,7 @@ import { useVerifierIdentity } from './verifier-identity'
 import { useProfile } from './profile-data-access'
 import {
   useOpenRounds,
+  useOwnRoundAnswers,
   useRecentActivity,
   useReputation,
   useRoundHistory,
@@ -137,7 +138,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
         ) : !connected ? (
           <ConnectPrompt />
         ) : isOwnQuestion ? (
-          <p className="text-xs text-muted-foreground">You asked this one, so you can&apos;t answer it yourself.</p>
+          <OwnQuestionAnswers roundId={round.id} answersCount={round.answersCount} />
         ) : (
           <div className="space-y-2">
             <div className="flex gap-2">
@@ -202,6 +203,58 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/** Live view of who's answered your own question so far — never shown to anyone who could still answer it themselves. */
+function OwnQuestionAnswers({ roundId, answersCount }: { roundId: string; answersCount: number }) {
+  const { data, isLoading } = useOwnRoundAnswers(roundId, answersCount > 0)
+
+  if (answersCount === 0) {
+    return <p className="text-xs text-muted-foreground">You asked this one, so you can&apos;t answer it yourself. Nobody has answered yet.</p>
+  }
+  if (isLoading || !data) {
+    return <div className="h-10 animate-pulse rounded-md bg-white/5" />
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-muted-foreground">
+        {data.answers.length} answer{data.answers.length === 1 ? '' : 's'} so far
+      </p>
+      {data.answers.map((a) => (
+        <div key={a.verifierWallet} className="space-y-2 rounded-md bg-black/20 p-2 text-xs">
+          <div className="flex items-start gap-2">
+            {a.answer === 'yes' ? (
+              <ThumbsUp className="h-3.5 w-3.5 shrink-0 text-violet-400" />
+            ) : (
+              <ThumbsDown className="h-3.5 w-3.5 shrink-0 text-red-400" />
+            )}
+            <div className="flex-1 space-y-0.5">
+              <div className="font-medium">
+                {ellipsify(a.verifierWallet)} answered {a.answer}
+              </div>
+              {a.note && <div className="text-muted-foreground">{a.note}</div>}
+            </div>
+          </div>
+
+          {a.photoUrl && (
+            <div className="relative h-40 w-full overflow-hidden rounded-md">
+              <Image src={a.photoUrl} alt={`Photo proof from ${ellipsify(a.verifierWallet)}`} fill className="object-cover" />
+            </div>
+          )}
+
+          {a.location && (
+            <div className="space-y-1">
+              <p className="flex items-center gap-1 text-muted-foreground">
+                <MapPin className="h-3 w-3" /> Location at the time of the answer
+              </p>
+              <LocationMap lat={a.location.lat} lng={a.location.lng} className="h-40" />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   )
 }
 

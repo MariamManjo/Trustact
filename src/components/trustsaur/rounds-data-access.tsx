@@ -26,6 +26,36 @@ export function useOpenRounds() {
   })
 }
 
+export interface RoundAnswerDetail {
+  verifierWallet: string
+  answer: 'yes' | 'no'
+  note?: string
+  photoUrl?: string
+  location?: { lat: number; lng: number; mapUrl: string }
+}
+
+/**
+ * Full round detail including in-progress answers — only fetched for a
+ * round the caller asked (see OpenRoundCard), never for rounds someone
+ * else might still answer. Showing incoming answers to a not-yet-answered
+ * verifier would let them anchor on others' answers instead of forming an
+ * independent one, undermining the consensus mechanism; the asker can't
+ * answer their own round anyway; so it's safe to show them.
+ */
+export function useOwnRoundAnswers(roundId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['round-detail', roundId],
+    queryFn: async (): Promise<{ answers: RoundAnswerDetail[] }> => {
+      const res = await fetch(`/api/rounds/${roundId}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to load answers.')
+      return data
+    },
+    enabled,
+    refetchInterval: 5000,
+  })
+}
+
 export interface ReputationSummary {
   correct: number
   incorrect: number
