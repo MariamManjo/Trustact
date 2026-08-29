@@ -106,7 +106,7 @@ function formatWallet(wallet: string): string {
 export function TrustactFeature() {
   const { publicKey } = useWallet()
   const depositToRound = useDepositToRound()
-  const [action, setAction] = useState(EXAMPLE_ACTION)
+  const [action, setAction] = useState('')
   const [photoRequired, setPhotoRequired] = useState(false)
   const [locationRequired, setLocationRequired] = useState(false)
   const [windowSeconds, setWindowSeconds] = useState<number>(WINDOW_PRESETS[0].seconds)
@@ -239,6 +239,7 @@ export function TrustactFeature() {
             value={action}
             onChange={(e) => setAction(e.target.value)}
             disabled={stage !== 'idle'}
+            placeholder={EXAMPLE_ACTION}
             className="min-h-24 w-full resize-none rounded-lg border border-white/10 bg-black/20 p-3 text-sm leading-relaxed transition-colors placeholder:text-muted-foreground/60 focus:border-violet-500/40 focus:outline-none focus:ring-2 focus:ring-violet-500/30 disabled:opacity-50"
           />
 
