@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!isMessageFresh(issuedAt)) {
-      return NextResponse.json({ error: 'Sign-in request expired — try again.' }, { status: 400 })
+      return NextResponse.json({ error: 'Sign-in request expired. Try again.' }, { status: 400 })
     }
 
     const domain = req.nextUrl.hostname

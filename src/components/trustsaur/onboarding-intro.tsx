@@ -16,7 +16,7 @@ const STEPS: Step[] = [
   {
     eyebrow: '1. The problem',
     title: 'Your AI agent is about to spend your money.',
-    body: 'It acts on what it knows — not on what’s true right now.',
+    body: 'It acts on what it knows, not on what’s true right now.',
     image: '/onboarding/walking.png',
   },
   {
@@ -33,7 +33,7 @@ const STEPS: Step[] = [
   },
   {
     eyebrow: '4. The payout',
-    title: 'Verified, then paid — automatically.',
+    title: 'Verified, then paid automatically.',
     body: 'The moment it’s confirmed, payment fires on-chain in SOL. No native token, no extra step.',
     image: '/onboarding/jumping.png',
   },

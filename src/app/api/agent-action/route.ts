@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     if (!action || typeof action !== 'string' || action.trim().length < 5) {
       return NextResponse.json(
-        { error: 'action is required — describe what the agent wants to do.' },
+        { error: 'action is required, describe what the agent wants to do.' },
         { status: 400 }
       )
     }

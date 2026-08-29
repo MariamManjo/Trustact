@@ -40,7 +40,7 @@ export async function verifyStakeTransfer(
   const connection = new Connection(RPC_URL, 'confirmed')
   const tx = await connection.getTransaction(signature, { maxSupportedTransactionVersion: 0 })
 
-  if (!tx) return { ok: false, reason: 'Stake transaction not found on-chain yet — try again in a moment.' }
+  if (!tx) return { ok: false, reason: 'Stake transaction not found on-chain yet. Try again in a moment.' }
   if (tx.meta?.err) return { ok: false, reason: 'Stake transaction failed on-chain.' }
 
   const treasury = getTreasuryAddress().toBase58()

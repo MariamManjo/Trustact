@@ -1,6 +1,5 @@
 import React from 'react'
 import Link from 'next/link'
-import { Github, ArrowUpRight } from 'lucide-react'
 import { BrandMark } from '@/components/trustsaur/brand-mark'
 
 const PRODUCT_LINKS = [
@@ -17,68 +16,21 @@ export function AppFooter() {
           <div className="max-w-xs space-y-3">
             <BrandMark iconClassName="h-7 w-7" wordmarkClassName="h-4" />
             <p className="text-sm leading-relaxed text-neutral-500">
-              Real people, answering real questions for real money — settled on Solana. No token, no NFTs.
+              Real people, answering real questions for real money, settled on Solana. No token, no NFTs.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
-            <div className="space-y-3">
-              <p className="text-xs font-semibold tracking-wider text-neutral-300 uppercase">Product</p>
-              <ul className="space-y-2 text-sm">
-                {PRODUCT_LINKS.map((link) => (
-                  <li key={link.path}>
-                    <Link href={link.path} className="transition-colors hover:text-white">
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-xs font-semibold tracking-wider text-neutral-300 uppercase">Network</p>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <a
-                    href="https://explorer.solana.com/?cluster=devnet"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 transition-colors hover:text-white"
-                  >
-                    Solana Explorer
-                    <ArrowUpRight className="h-3 w-3" />
-                  </a>
+          <div className="space-y-3">
+            <p className="text-xs font-semibold tracking-wider text-neutral-300 uppercase">Product</p>
+            <ul className="space-y-2 text-sm">
+              {PRODUCT_LINKS.map((link) => (
+                <li key={link.path}>
+                  <Link href={link.path} className="transition-colors hover:text-white">
+                    {link.label}
+                  </Link>
                 </li>
-                <li>
-                  <a
-                    href="https://solana.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 transition-colors hover:text-white"
-                  >
-                    Solana.com
-                    <ArrowUpRight className="h-3 w-3" />
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-xs font-semibold tracking-wider text-neutral-300 uppercase">Built with</p>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <a
-                    href="https://github.com/solana-developers/create-solana-dapp"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 transition-colors hover:text-white"
-                  >
-                    <Github className="h-3.5 w-3.5" />
-                    create-solana-dapp
-                  </a>
-                </li>
-              </ul>
-            </div>
+              ))}
+            </ul>
           </div>
         </div>
 

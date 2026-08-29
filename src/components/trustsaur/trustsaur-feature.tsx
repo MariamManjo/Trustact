@@ -84,7 +84,7 @@ interface Round {
 const MAX_VERIFIERS = 5
 
 const EXAMPLE_ACTION =
-  "Cafe Luna doesn't take online reservations — confirm they're actually open and taking walk-ins right now, then pay a $40 deposit to hold a table for 2 at 7pm tonight."
+  "Cafe Luna doesn't take online reservations. Confirm they're actually open and taking walk-ins right now, then pay a $40 deposit to hold a table for 2 at 7pm tonight."
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
@@ -210,7 +210,7 @@ export function TrustactFeature() {
 
           {stage === 'idle' && (
             <p className="text-xs text-muted-foreground">
-              Free to post. Verifiers stake their own SOL on their answer — no self-judging, resolved by consensus.
+              Free to post. Verifiers stake their own SOL on their answer, resolved by consensus with no self-judging.
             </p>
           )}
 
@@ -282,7 +282,7 @@ export function TrustactFeature() {
                   <div className="space-y-1">
                     <p className="flex items-center gap-2 text-sm font-medium text-violet-500">
                       <CheckCircle2 className="h-4 w-4 shrink-0" />
-                      Approved automatically — no human verification needed
+                      Approved automatically, no human verification needed
                     </p>
                     <p className="text-sm text-muted-foreground">{check.reasoning}</p>
                   </div>
@@ -333,7 +333,7 @@ export function TrustactFeature() {
                 <CardContent className="flex items-center gap-3">
                   <Mascot className="h-10 w-10 rounded-full" bounce />
                   <p className="text-sm text-muted-foreground">
-                    {round.answers.length} answers in — settling by consensus, no one judges their own round…
+                    {round.answers.length} answers in, settling by consensus. No one judges their own round…
                   </p>
                 </CardContent>
               </Card>
@@ -348,7 +348,7 @@ export function TrustactFeature() {
                     <Clock className="h-4 w-4 shrink-0" />
                     Nobody answered in time
                   </p>
-                  <p className="text-xs text-muted-foreground">Try asking again — verifier availability varies.</p>
+                  <p className="text-xs text-muted-foreground">Try asking again, verifier availability varies.</p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -361,8 +361,8 @@ export function TrustactFeature() {
                   <div className="flex items-center gap-2 text-sm font-medium text-violet-500">
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
                     {round.resolutionKind === 'majority'
-                      ? `Majority resolved — ${round.payment.totalAmountSol} SOL split across ${round.payment.recipients.length} correct verifier${round.payment.recipients.length === 1 ? '' : 's'}`
-                      : `${round.resolutionKind === 'solo' ? 'Solo answer' : round.resolutionKind === 'tie' ? 'No clear majority' : 'Unanimous'} — stakes returned, no platform cut`}
+                      ? `Majority resolved: ${round.payment.totalAmountSol} SOL split across ${round.payment.recipients.length} correct verifier${round.payment.recipients.length === 1 ? '' : 's'}`
+                      : `${round.resolutionKind === 'solo' ? 'Solo answer' : round.resolutionKind === 'tie' ? 'No clear majority' : 'Unanimous'}, stakes returned with no platform cut`}
                   </div>
                   <p className="rounded-md bg-black/20 p-2 font-mono text-xs break-all text-muted-foreground">
                     {round.payment.signature}
@@ -394,7 +394,7 @@ export function TrustactFeature() {
                         >
                           <div className="flex-1 space-y-0.5">
                             <div className="text-xs font-medium text-violet-500">
-                              {formatWallet(r.wallet)} — {r.amountSol} SOL
+                              {formatWallet(r.wallet)}: {r.amountSol} SOL
                               {award && ` · ${award.amount} pts`}
                             </div>
                             {chips.length > 0 && (

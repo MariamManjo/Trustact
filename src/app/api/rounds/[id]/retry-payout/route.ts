@@ -32,7 +32,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     const unjudged = round.answers.some((a) => !a.judgment)
     if (round.status !== 'settling' || unjudged || !round.resolutionKind) {
       return NextResponse.json(
-        { error: 'This round has no recorded judgment yet — nothing to retry.' },
+        { error: 'This round has no recorded judgment yet, nothing to retry.' },
         { status: 400 }
       )
     }

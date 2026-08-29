@@ -7,15 +7,15 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 const HOW_IT_WORKS = [
   {
     title: 'Ask, starting at $1',
-    body: 'A question opens with a small stake pool — free to post, the pool grows as people answer.',
+    body: 'A question opens with a small stake pool. Free to post, and the pool grows as people answer.',
   },
   {
     title: 'Answer correctly, split the pool',
-    body: 'Everyone who gets it right splits the money the wrong answers staked — the faster you answer, the bigger your share.',
+    body: 'Everyone who gets it right splits the money the wrong answers staked. The faster you answer, the bigger your share.',
   },
   {
     title: 'Solana pays out in seconds',
-    body: 'No invoice, no manual step — the moment it resolves, payment happens on-chain automatically.',
+    body: 'No invoice, no manual step. The moment it resolves, payment happens on-chain automatically.',
   },
 ]
 
@@ -32,7 +32,7 @@ export function LandingPitch() {
           </span>
         </p>
         <p className="mx-auto max-w-lg text-sm font-medium text-muted-foreground md:text-base">
-          Real questions, real people, real money — settled on Solana.
+          Real questions, real people, real money, settled on Solana.
         </p>
         <HeroCharacter />
       </section>

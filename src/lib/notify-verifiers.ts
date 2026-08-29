@@ -57,7 +57,7 @@ export async function notifyNewRound(round: { id: string; question: string }): P
       return {
         from: getFromAddress(),
         to: [email],
-        subject: 'A new question needs a real human — Trustact',
+        subject: 'A new question needs a real human on Trustact',
         html: buildEmailHtml(round.question, round.id, unsubscribeUrl),
       }
     })

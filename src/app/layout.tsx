@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Trustact',
   description:
-    'Before an AI agent spends your money, a real person checks first — real questions, real people, real money, settled on Solana.',
+    'Before an AI agent spends your money, a real person checks first. Real questions, real people, real money, settled on Solana.',
 }
 
 const links: { label: string; path: string }[] = [

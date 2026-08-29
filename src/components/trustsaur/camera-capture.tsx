@@ -63,7 +63,7 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
             ? 'No camera found on this device.'
             : name === 'NotReadableError'
               ? 'Camera is already in use by another app.'
-              : 'Could not access your camera — check permissions and try again.'
+              : 'Could not access your camera. Check permissions and try again.'
       setError(message)
       setStage('error')
     }

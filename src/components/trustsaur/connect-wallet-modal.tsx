@@ -95,7 +95,7 @@ function walletErrorMessage(err: unknown): string {
       return err.name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/Error$/, '').trim()
     }
   }
-  return 'Connection cancelled — try again.'
+  return 'Connection cancelled. Try again.'
 }
 
 function WalletIcon({ entry }: { entry: WalletEntry }) {
@@ -242,7 +242,7 @@ export function ConnectWalletModal({ open, onOpenChange }: { open: boolean; onOp
     timeoutRef.current = setTimeout(() => {
       if (pendingWalletNameRef.current !== attemptName) return
       setPendingWalletName(null)
-      setInlineError('Connection timed out — try again.')
+      setInlineError('Connection timed out. Try again.')
     }, 25000)
 
     const stillThisAttempt = () => pendingWalletNameRef.current === attemptName

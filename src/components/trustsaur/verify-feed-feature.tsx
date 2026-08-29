@@ -59,8 +59,8 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
           err.code === err.PERMISSION_DENIED
             ? 'Location access is blocked. Enable it via the aA icon in the address bar → Website Settings → Location, then try again.'
             : err.code === err.TIMEOUT
-              ? 'Location took too long — check your signal and try again.'
-              : 'Could not get your location — try again.'
+              ? 'Location took too long. Check your signal and try again.'
+              : 'Could not get your location. Try again.'
         setLocationError(message)
         setLocating(false)
       },
@@ -103,7 +103,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
       })
       setSubmitted(true)
     } catch (err) {
-      setStakeError(err instanceof Error ? err.message : 'Stake transaction failed — try again.')
+      setStakeError(err instanceof Error ? err.message : 'Stake transaction failed. Try again.')
     } finally {
       setStaking(false)
       setStakePhase(null)
@@ -123,7 +123,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
         </div>
         <p className="text-xs text-muted-foreground">{round.action}</p>
         <p className="text-xs text-muted-foreground">
-          Stake {stakeSol} SOL on your answer — wrong answers fund correct ones, no self-judging
+          Stake {stakeSol} SOL on your answer. Wrong answers fund correct ones, no self-judging
         </p>
 
         {(photoRequired || locationRequired) && (
@@ -144,7 +144,7 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
         {submitted ? (
           <div className="flex items-center gap-2 text-sm font-medium text-violet-500">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
-            Staked and answered — resolves by consensus, no one judges their own round.
+            Staked and answered. Resolves by consensus, no one judges their own round.
           </div>
         ) : !connected ? (
           <ConnectPrompt />
@@ -274,7 +274,7 @@ export function VerifyFeedFeature() {
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-violet-500">Verify</h1>
           <p className="text-sm text-muted-foreground">
-            Real questions, free to post. Stake on your answer — resolved by consensus, paid in seconds.
+            Real questions, free to post. Stake on your answer, resolved by consensus and paid in seconds.
           </p>
         </div>
         <ReputationBadge />
@@ -291,7 +291,7 @@ export function VerifyFeedFeature() {
       {!isLoading && (!rounds || rounds.length === 0) && (
         <Card className="py-4">
           <CardContent className="text-sm text-muted-foreground">
-            No open questions right now — check back soon.
+            No open questions right now. Check back soon.
           </CardContent>
         </Card>
       )}
