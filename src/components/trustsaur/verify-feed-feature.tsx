@@ -1,18 +1,20 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { motion } from 'framer-motion'
 import { Camera, CheckCircle2, Clock, MapPin, ThumbsDown, ThumbsUp, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { ellipsify } from '@/lib/utils'
+import { ellipsify, formatTimeRemaining } from '@/lib/utils'
 import { ConnectWalletModal } from './connect-wallet-modal'
 import { CameraCapture } from './camera-capture'
 import { LocationMap } from './location-map'
 import {
   useOpenRounds,
+  useRecentActivity,
   useReputation,
   useRoundHistory,
   useSubmitAnswer,
@@ -97,6 +99,8 @@ function OpenRoundCard({ round }: { round: OpenRoundSummary }) {
         <p className="text-xs text-muted-foreground">{round.action}</p>
         <p className="text-xs text-muted-foreground">
           {poolSol} SOL pool. Answer for free, correct and fastest answers split it, no self-judging.
+          {' · '}
+          {formatTimeRemaining(round.closesAt)}
         </p>
 
         {(photoRequired || locationRequired) && (
@@ -210,9 +214,11 @@ function historyOutcome(round: HistoryRound): { label: string; tone: 'violet' | 
   return { label: `${kind} · ${round.payment.totalAmountSol} SOL split, no platform cut`, tone: 'violet' }
 }
 
-function HistoryRoundCard({ round, wallet }: { round: HistoryRound; wallet: string }) {
+function HistoryRoundCard({ round, viewerWallet }: { round: HistoryRound; viewerWallet?: string }) {
   const outcome = historyOutcome(round)
-  const isAsker = round.askerWallet === wallet
+  const isAsker = round.askerWallet === viewerWallet
+  const isAnswerer = round.answers.some((a) => a.verifierWallet === viewerWallet)
+  const badgeLabel = isAsker ? 'You asked' : isAnswerer ? 'You answered' : `Asked by ${ellipsify(round.askerWallet)}`
   const toneClass =
     outcome.tone === 'violet'
       ? 'text-violet-500'
@@ -226,7 +232,7 @@ function HistoryRoundCard({ round, wallet }: { round: HistoryRound; wallet: stri
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm font-medium">{round.question}</p>
           <span className="shrink-0 rounded-full bg-white/5 px-2 py-0.5 text-xs font-medium text-muted-foreground">
-            {isAsker ? 'You asked' : 'You answered'}
+            {badgeLabel}
           </span>
         </div>
 
@@ -247,29 +253,48 @@ function HistoryRoundCard({ round, wallet }: { round: HistoryRound; wallet: stri
               {round.answers.length} answer{round.answers.length === 1 ? '' : 's'}
             </p>
             {round.answers.map((a) => (
-              <div
-                key={a.verifierWallet}
-                className="flex items-center gap-2 rounded-md bg-black/20 p-2 text-xs"
-              >
-                {a.answer === 'yes' ? (
-                  <ThumbsUp className="h-3.5 w-3.5 shrink-0 text-violet-400" />
-                ) : (
-                  <ThumbsDown className="h-3.5 w-3.5 shrink-0 text-red-400" />
-                )}
-                <div className="flex-1 space-y-0.5">
-                  <div className="font-medium">
-                    {a.verifierWallet === wallet ? 'You' : ellipsify(a.verifierWallet)}
-                    {' answered '}
-                    {a.answer}
-                    {a.judgment && (
-                      <span className={a.judgment === 'correct' ? 'text-violet-400' : 'text-red-400'}>
-                        {' · '}
-                        {a.judgment}
-                      </span>
-                    )}
+              <div key={a.verifierWallet} className="space-y-2 rounded-md bg-black/20 p-2 text-xs">
+                <div className="flex items-start gap-2">
+                  {a.answer === 'yes' ? (
+                    <ThumbsUp className="h-3.5 w-3.5 shrink-0 text-violet-400" />
+                  ) : (
+                    <ThumbsDown className="h-3.5 w-3.5 shrink-0 text-red-400" />
+                  )}
+                  <div className="flex-1 space-y-0.5">
+                    <div className="font-medium">
+                      {a.verifierWallet === viewerWallet ? 'You' : ellipsify(a.verifierWallet)}
+                      {' answered '}
+                      {a.answer}
+                      {a.judgment && (
+                        <span className={a.judgment === 'correct' ? 'text-violet-400' : 'text-red-400'}>
+                          {' · '}
+                          {a.judgment}
+                        </span>
+                      )}
+                    </div>
+                    {a.note && <div className="text-muted-foreground">{a.note}</div>}
                   </div>
-                  {a.note && <div className="text-muted-foreground">{a.note}</div>}
                 </div>
+
+                {a.photoUrl && (
+                  <div className="relative h-40 w-full overflow-hidden rounded-md">
+                    <Image
+                      src={a.photoUrl}
+                      alt={`Photo proof from ${ellipsify(a.verifierWallet)}`}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+
+                {a.location && (
+                  <div className="space-y-1">
+                    <p className="flex items-center gap-1 text-muted-foreground">
+                      <MapPin className="h-3 w-3" /> Location at the time of the answer
+                    </p>
+                    <LocationMap lat={a.location.lat} lng={a.location.lng} className="h-40" />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -310,7 +335,33 @@ function HistorySection() {
       <h2 className="text-sm font-semibold tracking-tight text-violet-500">Your history</h2>
       <div className="space-y-3">
         {rounds.map((round) => (
-          <HistoryRoundCard key={round.id} round={round} wallet={wallet} />
+          <HistoryRoundCard key={round.id} round={round} viewerWallet={wallet} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function RecentActivitySection() {
+  const { publicKey } = useWallet()
+  const { data: rounds, isLoading } = useRecentActivity()
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="h-24 animate-pulse rounded-xl border border-white/10 bg-white/5" />
+      </div>
+    )
+  }
+  if (!rounds || rounds.length === 0) return null
+
+  return (
+    <div className="space-y-3">
+      <h2 className="text-sm font-semibold tracking-tight text-violet-500">Recent activity</h2>
+      <p className="text-xs text-muted-foreground">Every resolved question across Trustact, asked and answered by real people.</p>
+      <div className="space-y-3">
+        {rounds.map((round) => (
+          <HistoryRoundCard key={round.id} round={round} viewerWallet={publicKey?.toBase58()} />
         ))}
       </div>
     </div>
@@ -402,6 +453,7 @@ export function VerifyFeedFeature() {
       </div>
 
       <HistorySection />
+      <RecentActivitySection />
     </div>
   )
 }

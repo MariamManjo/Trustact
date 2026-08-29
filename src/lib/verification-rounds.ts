@@ -9,6 +9,8 @@ const ROUND_KEY_PREFIX = 'trustsaur:round:'
 const OPEN_ROUNDS_SET = 'trustsaur:rounds:open'
 const WALLET_ASKED_PREFIX = 'trustsaur:wallet:asked:'
 const WALLET_ANSWERED_PREFIX = 'trustsaur:wallet:answered:'
+const RECENT_ACTIVITY_ZSET = 'trustsaur:rounds:activity'
+const RECENT_ACTIVITY_CAP = 50
 
 export const MAX_VERIFIERS = 5
 
@@ -190,6 +192,13 @@ async function persistRound(round: VerificationRound): Promise<void> {
         round.answers.map((a) => redis.sadd(WALLET_ANSWERED_PREFIX + a.verifierWallet, round.id))
       )
     }
+    // Public "everyone" feed — capped so it can't grow unbounded. Only
+    // resolved rounds (not every intermediate status write) so the feed
+    // shows finished outcomes, not in-flight ones.
+    if (round.status === 'resolved') {
+      await redis.zadd(RECENT_ACTIVITY_ZSET, { score: round.createdAt, member: round.id })
+      await redis.zremrangebyrank(RECENT_ACTIVITY_ZSET, 0, -(RECENT_ACTIVITY_CAP + 1))
+    }
     return
   }
 
@@ -318,6 +327,23 @@ export async function listWalletHistory(wallet: string): Promise<VerificationRou
       (r) => r.status !== 'collecting' && (r.askerWallet === wallet || r.answers.some((a) => a.verifierWallet === wallet))
     )
     .sort((a, b) => b.createdAt - a.createdAt)
+}
+
+/** The most recently resolved rounds across everyone, newest first — a public "what's happening" feed. */
+export async function listRecentActivity(limit = 20): Promise<VerificationRound[]> {
+  const redis = getRedis()
+  if (redis) {
+    const ids = await redis.zrange<string[]>(RECENT_ACTIVITY_ZSET, 0, limit - 1, { rev: true })
+    const rounds = await Promise.all(ids.map((id) => getRound(id)))
+    return rounds.filter((r): r is VerificationRound => r !== undefined)
+  }
+
+  const store = loadFileStore()
+  const rounds = await Promise.all(Object.values(store).map((r) => closeIfExpired(r)))
+  return rounds
+    .filter((r) => r.status === 'resolved')
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, limit)
 }
 
 export async function submitAnswer(

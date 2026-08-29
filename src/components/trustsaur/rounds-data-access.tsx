@@ -91,6 +91,19 @@ export function useRoundHistory(wallet: string | undefined) {
   })
 }
 
+export function useRecentActivity() {
+  return useQuery({
+    queryKey: ['rounds-activity'],
+    queryFn: async (): Promise<HistoryRound[]> => {
+      const res = await fetch('/api/rounds/activity')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to load activity.')
+      return data.rounds
+    },
+    refetchInterval: 8000,
+  })
+}
+
 export interface AnswerInput {
   roundId: string
   verifierWallet: string

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRound, isValidRoundId, ASK_FEE_LAMPORTS } from '@/lib/verification-rounds'
 import { verifyDeposit } from '@/lib/escrow-pay'
-import { VERIFICATION_WINDOW_SECONDS } from '@/lib/verification-window'
+import { VERIFICATION_WINDOW_SECONDS, isValidWindowSeconds } from '@/lib/verification-window'
 import { notifyNewRound } from '@/lib/notify-verifiers'
 
 /**
  * POST /api/rounds
- * body: { roundId, action, question, askerWallet, depositSignature, proofRequirements? }
+ * body: { roundId, action, question, askerWallet, depositSignature, proofRequirements?, windowSeconds? }
  *
  * Call this only after /api/rounds/assess said a human check is needed and
  * the asker has already deposited on-chain into `roundId`'s vault (see
@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     const depositSignature = typeof body?.depositSignature === 'string' ? body.depositSignature : undefined
     const photoRequired = body?.proofRequirements?.photoRequired === true
     const locationRequired = body?.proofRequirements?.locationRequired === true
+    const windowSeconds = body?.windowSeconds
 
     if (!roundId || !isValidRoundId(roundId)) {
       return NextResponse.json({ error: 'A valid roundId is required.' }, { status: 400 })
@@ -36,6 +37,9 @@ export async function POST(req: NextRequest) {
     }
     if (!depositSignature) {
       return NextResponse.json({ error: 'A deposit transaction is required to open a round.' }, { status: 400 })
+    }
+    if (windowSeconds !== undefined && !isValidWindowSeconds(windowSeconds)) {
+      return NextResponse.json({ error: 'windowSeconds must be one of the offered presets.' }, { status: 400 })
     }
 
     const depositCheck = await verifyDeposit(roundId, depositSignature, askerWallet, ASK_FEE_LAMPORTS)
@@ -51,7 +55,7 @@ export async function POST(req: NextRequest) {
       feeLamports: ASK_FEE_LAMPORTS,
       depositSignature,
       proofRequirements: { photoRequired, locationRequired },
-      windowSeconds: VERIFICATION_WINDOW_SECONDS,
+      windowSeconds: isValidWindowSeconds(windowSeconds) ? windowSeconds : VERIFICATION_WINDOW_SECONDS,
     })
 
     await notifyNewRound(round)

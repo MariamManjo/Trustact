@@ -8,10 +8,12 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, Clock, AlertTriangle, ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { formatTimeRemaining } from '@/lib/utils'
 import { LandingPitch } from './landing-pitch'
 import { LocationMap } from './location-map'
 import { ConnectWalletModal } from './connect-wallet-modal'
 import { useDepositToRound } from './escrow-data-access'
+import { WINDOW_PRESETS } from '@/lib/verification-window'
 import Link from 'next/link'
 
 const FALLBACK_FEE_LAMPORTS = 0.02 * LAMPORTS_PER_SOL
@@ -84,6 +86,7 @@ interface Round {
   resolutionKind?: ResolutionKind
   payment?: RoundPayment
   points?: Record<string, { amount: number; breakdown: PointsBreakdown }>
+  closesAt: number
 }
 
 const MAX_VERIFIERS = 5
@@ -106,6 +109,7 @@ export function TrustactFeature() {
   const [action, setAction] = useState(EXAMPLE_ACTION)
   const [photoRequired, setPhotoRequired] = useState(false)
   const [locationRequired, setLocationRequired] = useState(false)
+  const [windowSeconds, setWindowSeconds] = useState<number>(WINDOW_PRESETS[0].seconds)
   const [stage, setStage] = useState<Stage>('idle')
   const [check, setCheck] = useState<CheckResult | null>(null)
   const [round, setRound] = useState<Round | null>(null)
@@ -189,6 +193,7 @@ export function TrustactFeature() {
           askerWallet: publicKey.toBase58(),
           depositSignature,
           proofRequirements: { photoRequired, locationRequired },
+          windowSeconds,
         }),
       })
       const createData = await createRes.json()
@@ -264,6 +269,31 @@ export function TrustactFeature() {
                 />
                 Require location
               </label>
+            </div>
+          )}
+
+          {stage === 'idle' && (
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">How long should verifiers have to answer?</p>
+              <div className="flex gap-1.5">
+                {WINDOW_PRESETS.map((preset) => (
+                  <button
+                    key={preset.seconds}
+                    type="button"
+                    onClick={() => setWindowSeconds(preset.seconds)}
+                    className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-colors ${
+                      windowSeconds === preset.seconds
+                        ? 'bg-violet-500 text-white'
+                        : 'bg-white/5 text-muted-foreground hover:bg-white/10'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground/70">
+                If nobody answers by then, your deposit is refunded automatically.
+              </p>
             </div>
           )}
 
@@ -361,7 +391,7 @@ export function TrustactFeature() {
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-60" />
                         <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
                       </span>
-                      {answersCount} of {MAX_VERIFIERS} verifiers answered
+                      {answersCount} of {MAX_VERIFIERS} verifiers answered · {formatTimeRemaining(round.closesAt)}
                     </span>
                     <Link
                       href="/verify"
@@ -432,6 +462,7 @@ export function TrustactFeature() {
                   <div className="space-y-1.5">
                     {round.payment.recipients.map((r) => {
                       const award = round.points?.[r.wallet]
+                      const answer = round.answers.find((a) => a.verifierWallet === r.wallet)
                       const chips = award
                         ? [
                             award.breakdown.speedBonus > 0 ? `+${award.breakdown.speedBonus} speed` : null,
@@ -440,10 +471,7 @@ export function TrustactFeature() {
                           ].filter(Boolean)
                         : []
                       return (
-                        <div
-                          key={r.wallet}
-                          className="flex items-center gap-2 rounded-md bg-black/20 p-2"
-                        >
+                        <div key={r.wallet} className="rounded-md bg-black/20 p-2">
                           <div className="flex-1 space-y-0.5">
                             <div className="text-xs font-medium text-violet-500">
                               {formatWallet(r.wallet)}: {r.amountSol} SOL
@@ -452,11 +480,30 @@ export function TrustactFeature() {
                             {chips.length > 0 && (
                               <div className="text-[11px] text-muted-foreground">{chips.join(' · ')}</div>
                             )}
+                            {answer?.note && (
+                              <div className="pt-1 text-[11px] text-muted-foreground">&ldquo;{answer.note}&rdquo;</div>
+                            )}
                           </div>
                         </div>
                       )
                     })}
                   </div>
+
+                  {round.answers.some((a) => a.photoUrl) && (
+                    <div className="space-y-1.5 border-t border-white/10 pt-3">
+                      <p className="text-xs font-medium text-muted-foreground">Photo proof</p>
+                      {round.answers
+                        .filter((a) => a.photoUrl)
+                        .map((a) => (
+                          <div key={a.verifierWallet} className="space-y-1">
+                            <p className="text-[11px] text-muted-foreground">{formatWallet(a.verifierWallet)}</p>
+                            <div className="relative h-48 w-full overflow-hidden rounded-md">
+                              <Image src={a.photoUrl!} alt={`Photo proof from ${formatWallet(a.verifierWallet)}`} fill className="object-cover" />
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
 
                   {round.answers.some((a) => a.location) && (
                     <div className="space-y-1.5 border-t border-white/10 pt-3">
