@@ -1,6 +1,4 @@
-import Image from 'next/image'
 import { ArrowUpRight } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { HeroCharacter } from './hero-character'
 
@@ -59,30 +57,6 @@ export function LandingPitch() {
             </div>
           ))}
         </div>
-      </section>
-
-      {/* Real example */}
-      <section>
-        <Eyebrow>A real example</Eyebrow>
-        <Card className="py-4">
-          <CardContent className="flex items-start gap-3">
-            <Image
-              src="/hero/happy.png"
-              alt=""
-              width={56}
-              height={56}
-              className="h-14 w-14 shrink-0 rounded-full object-cover object-top"
-            />
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-white">
-                &ldquo;Is the disabled elevator working at the Tate museum right now?&rdquo;
-              </p>
-              <p className="text-xs text-muted-foreground">
-                A real person checks, answers, and gets paid automatically.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </section>
 
       {/* Action */}
